@@ -93,6 +93,7 @@ from zerver.models import (
     UserPresence,
     UserProfile,
     UserTopic,
+    AssistantJob
 )
 from zerver.models.clients import get_client
 from zerver.models.groups import SystemGroups
@@ -101,7 +102,8 @@ from zerver.models.scheduled_jobs import NotificationTriggers
 from zerver.models.streams import get_stream, get_stream_by_id_in_realm
 from zerver.models.users import get_system_bot, get_user_by_delivery_email, is_cross_realm_bot_email
 from zerver.tornado.django_api import send_event_on_commit
-
+from zerver.tasks.message_tasks import translate_message
+from django.forms.models import model_to_dict
 
 def compute_irc_user_fullname(email: str) -> str:
     return Address(addr_spec=email).username + " (IRC)"
@@ -571,6 +573,7 @@ def build_message_send_dict(
     limit_unread_user_ids: set[int] | None = None,
     disable_external_notifications: bool = False,
     recipients_for_user_creation_events: dict[UserProfile, set[int]] | None = None,
+    context_messages: list[str] | None = None,
 ) -> SendMessageRequest:
     """Returns a dictionary that can be passed into do_send_messages.  In
     production, this is always called by check_message, but some
@@ -675,6 +678,7 @@ def build_message_send_dict(
         mention_data=mention_data,
         mentioned_user_groups_map=mentioned_user_groups_map,
         message=message,
+        context_messages=context_messages,
         rendering_result=rendering_result,
         active_user_ids=info.active_user_ids,
         online_push_user_ids=info.online_push_user_ids,
@@ -840,6 +844,8 @@ def do_send_messages(
     send_message_requests_maybe_none: Sequence[SendMessageRequest | None],
     *,
     mark_as_read: Sequence[int] = [],
+    language: str = None,
+    assistant_id: str = None,
 ) -> list[SentMessageResult]:
     """See
     https://zulip.readthedocs.io/en/latest/subsystems/sending-messages.html
@@ -865,7 +871,9 @@ def do_send_messages(
         ):
             send_request.message.has_attachment = True
             send_request.message.save(update_fields=["has_attachment"])
-
+        # save the message done --> translate message by language
+        if language:
+            translate_message.delay(message=model_to_dict(send_request.message), language=language)
     ums: list[UserMessageLite] = []
     for send_request in send_message_requests:
         # Service bots (outgoing webhook bots and embedded bots) don't store UserMessage rows;
@@ -1006,7 +1014,7 @@ def do_send_messages(
         # Deliver events to the real-time push system, as well as
         # enqueuing any additional processing triggered by the message.
         wide_message_dict = MessageDict.wide_dict(send_request.message, realm_id)
-
+        wide_message_dict["context_messages"] = send_request.context_messages
         user_flags = user_message_flags.get(send_request.message.id, {})
 
         """
@@ -1368,9 +1376,11 @@ def check_send_message(
     local_id: str | None = None,
     sender_queue_id: str | None = None,
     widget_content: str | None = None,
+    context_messages: list[str] | None = None,
     *,
     skip_stream_access_check: bool = False,
     read_by_sender: bool = False,
+    language: str = None,
 ) -> SentMessageResult:
     addressee = Addressee.legacy_build(sender, recipient_type_name, message_to, topic_name)
     try:
@@ -1386,11 +1396,12 @@ def check_send_message(
             local_id,
             sender_queue_id,
             widget_content,
+            context_messages=context_messages,
             skip_stream_access_check=skip_stream_access_check,
         )
     except ZephyrMessageAlreadySentError as e:
         return SentMessageResult(message_id=e.message_id)
-    return do_send_messages([message], mark_as_read=[sender.id] if read_by_sender else [])[0]
+    return do_send_messages([message], mark_as_read=[sender.id] if read_by_sender else [], language=language)[0]
 
 
 def send_rate_limited_pm_notification_to_bot_owner(
@@ -1651,6 +1662,7 @@ def check_message(
     sender_queue_id: str | None = None,
     widget_content: str | None = None,
     email_gateway: bool = False,
+    context_messages: list[str] = None,
     *,
     skip_stream_access_check: bool = False,
     message_type: int = Message.MessageType.NORMAL,
@@ -1797,6 +1809,7 @@ def check_message(
         limit_unread_user_ids=limit_unread_user_ids,
         disable_external_notifications=disable_external_notifications,
         recipients_for_user_creation_events=recipients_for_user_creation_events,
+        context_messages=context_messages
     )
 
     if (

@@ -23,6 +23,7 @@ from zerver.models.constants import MAX_TOPIC_NAME_LENGTH
 from zerver.models.realms import Realm
 from zerver.models.recipients import Recipient
 from zerver.models.users import UserProfile
+from zproject.computed_settings import LANGUAGE_COUNTRY
 
 
 class AbstractMessage(models.Model):
@@ -296,6 +297,34 @@ def get_context_for_message(message: Message) -> QuerySet[Message]:
 
 
 post_save.connect(flush_message, sender=Message)
+
+
+class MessageLanguage(models.Model):
+    message = models.ForeignKey(Message, on_delete=CASCADE)
+    language = models.CharField(
+        max_length=50,
+        choices=LANGUAGE_COUNTRY,
+        default="Vietnamese"
+    )
+    content = models.TextField()
+    rendered_content = models.TextField(null=True)
+    rendered_content_version = models.IntegerField(null=True)
+
+    class Meta:
+        unique_together = ("message", "language")
+        indexes = [
+            models.Index(
+                fields=["message"],
+                name="zerver_message_language_message_idx",
+            ),
+        ]
+
+    @staticmethod
+    def get_raw_db_rows(needed_ids: list[int]) -> list[dict[str, Any]]:
+        fields = ["id", "message_id", "content"]
+        query = MessageLanguage.objects.filter(message_id__in=needed_ids).values(*fields)
+        query = query.order_by("message_id", "id")
+        return list(query)
 
 
 class AbstractSubMessage(models.Model):

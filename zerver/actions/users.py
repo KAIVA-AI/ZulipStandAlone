@@ -6,7 +6,10 @@ from typing import Any
 from django.conf import settings
 from django.db import transaction
 from django.utils.timezone import now as timezone_now
-
+from django.db.models import Q, CharField, Value, IntegerField, F
+from django.db.models.functions import Coalesce
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.fields import ArrayField
 from zerver.actions.user_groups import (
     do_send_user_group_members_update_event,
     update_users_in_full_members_system_group,
@@ -40,7 +43,9 @@ from zerver.models import (
     Subscription,
     UserGroupMembership,
     UserProfile,
+    Evaluation
 )
+from zerver.models.evaluation import DEFINE_EVALUATION_TC, DEFINE_EVALUATION_ISSUE, DEFINE_EVALUATION_REQ
 from zerver.models.bots import get_bot_services
 from zerver.models.realms import get_fake_email_domain
 from zerver.models.users import (
@@ -658,28 +663,45 @@ def get_owned_bot_dicts(
             realm=user_profile.realm, is_bot=True, bot_owner=user_profile
         ).values(*bot_dict_fields)
     services_by_ids = get_service_dicts_for_bots(result, user_profile.realm)
-    return [
-        {
-            "email": botdict["email"],
-            "user_id": botdict["id"],
-            "full_name": botdict["full_name"],
-            "bot_type": botdict["bot_type"],
-            "is_active": botdict["is_active"],
-            "api_key": botdict["api_key"],
-            "default_sending_stream": botdict["default_sending_stream__name"],
-            "default_events_register_stream": botdict["default_events_register_stream__name"],
-            "default_all_public_streams": botdict["default_all_public_streams"],
-            "owner_id": botdict["bot_owner_id"],
+    bot_profile_ids = [bot_dict["id"] for bot_dict in result]
+    evaluation_template_by_services = Evaluation.objects.filter(user_profile__in=bot_profile_ids).values(
+        "user_profile_id").annotate(tags=Coalesce(
+        ArrayAgg(
+            "tag",
+            distinct=True,
+            filter=~Q(tag__isnull=True),
+        ),
+        Value([], output_field=ArrayField(CharField())),
+    ))
+    bot_dicts = []
+    for bot in result:
+        evaluations = list(filter(lambda x: x['user_profile_id'] == bot['id'], list(evaluation_template_by_services)))
+        bot_evaluation = evaluations[0]['tags'] if evaluations else []
+        bot_evaluation_dict = [{"key": evaluation, "message":
+            dict(DEFINE_EVALUATION_REQ + DEFINE_EVALUATION_TC + DEFINE_EVALUATION_ISSUE)[evaluation]} for
+                               evaluation in bot_evaluation]
+        bot_info = {
+            "email": bot["email"],
+            "user_id": bot["id"],
+            "full_name": bot["full_name"],
+            "bot_type": bot["bot_type"],
+            "is_active": bot["is_active"],
+            "api_key": bot["api_key"],
+            "default_sending_stream": bot["default_sending_stream__name"],
+            "default_events_register_stream": bot["default_events_register_stream__name"],
+            "default_all_public_streams": bot["default_all_public_streams"],
+            "owner_id": bot["bot_owner_id"],
             "avatar_url": get_avatar_field(
-                user_id=botdict["id"],
-                realm_id=botdict["realm_id"],
-                email=botdict["email"],
-                avatar_source=botdict["avatar_source"],
-                avatar_version=botdict["avatar_version"],
+                user_id=bot["id"],
+                realm_id=bot["realm_id"],
+                email=bot["email"],
+                avatar_source=bot["avatar_source"],
+                avatar_version=bot["avatar_version"],
                 medium=False,
                 client_gravatar=False,
             ),
-            "services": services_by_ids[botdict["id"]],
+            "services": services_by_ids[bot["id"]],
+            "evaluation": bot_evaluation_dict,
         }
-        for botdict in result
-    ]
+        bot_dicts.append(bot_info)
+    return bot_dicts

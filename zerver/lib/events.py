@@ -153,7 +153,7 @@ def fetch_initial_state_data(
     code to apply_events (and add a test in test_events.py).
     """
     state: dict[str, Any] = {"queue_id": queue_id}
-
+    exclude_bot = False
     if event_types is None:
         # return True always
         want: Callable[[str], bool] = always_want
@@ -164,7 +164,8 @@ def fetch_initial_state_data(
     state["zulip_version"] = ZULIP_VERSION
     state["zulip_feature_level"] = API_FEATURE_LEVEL
     state["zulip_merge_base"] = ZULIP_MERGE_BASE
-
+    if want("exclude_bot"):
+        exclude_bot = True
     if want("alert_words"):
         state["alert_words"] = [] if user_profile is None else user_alert_words(user_profile)
 
@@ -659,7 +660,7 @@ def fetch_initial_state_data(
         # message event.
 
         if user_profile is not None:
-            state["raw_unread_msgs"] = get_raw_unread_data(user_profile)
+            state["raw_unread_msgs"] = get_raw_unread_data(user_profile, exclude_bot=exclude_bot)
         else:
             # For logged-out visitors, we treat all messages as read;
             # calling this helper lets us return empty objects in the
@@ -1657,6 +1658,7 @@ def do_events_register(
     fetch_event_types: Collection[str] | None = None,
     spectator_requested_language: str | None = None,
     pronouns_field_type_supported: bool = True,
+    sender_apply_raw_content: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     # Technically we don't need to check this here because
     # build_narrow_predicate will check it, but it's nicer from an error
@@ -1740,6 +1742,7 @@ def do_events_register(
         pronouns_field_type_supported=pronouns_field_type_supported,
         linkifier_url_template=linkifier_url_template,
         user_list_incomplete=user_list_incomplete,
+        sender_apply_raw_content=sender_apply_raw_content,
     )
 
     if queue_id is None:

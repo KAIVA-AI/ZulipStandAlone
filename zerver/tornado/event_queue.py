@@ -78,6 +78,7 @@ class ClientDescriptor:
         pronouns_field_type_supported: bool = True,
         linkifier_url_template: bool = False,
         user_list_incomplete: bool = False,
+        sender_apply_raw_content: Sequence[str] | None = [],
     ) -> None:
         # TODO: We eventually want to upstream this code to the caller, but
         # serialization concerns make it a bit difficult.
@@ -108,7 +109,7 @@ class ClientDescriptor:
         self.pronouns_field_type_supported = pronouns_field_type_supported
         self.linkifier_url_template = linkifier_url_template
         self.user_list_incomplete = user_list_incomplete
-
+        self.sender_apply_raw_content = sender_apply_raw_content
         # Default for lifespan_secs is DEFAULT_EVENT_QUEUE_TIMEOUT_SECS;
         # but users can set it as high as MAX_QUEUE_TIMEOUT_SECS.
         if lifespan_secs == 0:
@@ -138,6 +139,7 @@ class ClientDescriptor:
             pronouns_field_type_supported=self.pronouns_field_type_supported,
             linkifier_url_template=self.linkifier_url_template,
             user_list_incomplete=self.user_list_incomplete,
+            sender_apply_raw_content=self.sender_apply_raw_content,
         )
 
     @override
@@ -1101,7 +1103,7 @@ def process_message_event(
 
     @cache
     def get_client_payload(
-        apply_markdown: bool, client_gravatar: bool, can_access_sender: bool
+        apply_markdown: bool, client_gravatar: bool, can_access_sender: bool, sender_apply_raw_content: Sequence[str]
     ) -> dict[str, Any]:
         return MessageDict.finalize_payload(
             wide_dict,
@@ -1109,6 +1111,7 @@ def process_message_event(
             client_gravatar=client_gravatar,
             can_access_sender=can_access_sender,
             realm_host=realm_host,
+            sender_apply_raw_content=sender_apply_raw_content,
         )
 
     # Extra user-specific data to include
@@ -1186,7 +1189,7 @@ def process_message_event(
 
         can_access_sender = client.user_profile_id not in user_ids_without_access_to_sender
         message_dict = get_client_payload(
-            client.apply_markdown, client.client_gravatar, can_access_sender
+            client.apply_markdown, client.client_gravatar, can_access_sender, tuple(client.sender_apply_raw_content)
         )
 
         # Make sure Zephyr mirroring bots know whether stream is invite-only

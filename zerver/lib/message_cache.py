@@ -3,7 +3,7 @@ import zlib
 from collections.abc import Iterable
 from datetime import datetime
 from email.headerregistry import Address
-from typing import Any, TypedDict
+from typing import Any, TypedDict, Sequence
 
 import orjson
 
@@ -178,6 +178,8 @@ class MessageDict:
         apply_markdown: bool,
         client_gravatar: bool,
         realm: Realm,
+        sender_apply_raw_content: Sequence[str],
+        language: str
     ) -> None:
         """
         NOTE: This function mutates the objects in
@@ -199,6 +201,8 @@ class MessageDict:
                 skip_copy=True,
                 can_access_sender=can_access_sender,
                 realm_host=realm.host,
+                sender_apply_raw_content=sender_apply_raw_content,
+                language=language
             )
 
     @staticmethod
@@ -210,6 +214,8 @@ class MessageDict:
         skip_copy: bool = False,
         can_access_sender: bool = True,
         realm_host: str = "",
+        sender_apply_raw_content: Sequence[str] = [],
+        language: str = None,
     ) -> dict[str, Any]:
         """
         By default, we make a shallow copy of the incoming dict to avoid
@@ -240,7 +246,8 @@ class MessageDict:
             ).addr_spec
 
         MessageDict.set_sender_avatar(obj, client_gravatar, can_access_sender)
-        if apply_markdown:
+        #if apply_markdown:
+        if apply_markdown and obj["sender_full_name"] not in sender_apply_raw_content:
             obj["content_type"] = "text/html"
             obj["content"] = obj["rendered_content"]
         else:

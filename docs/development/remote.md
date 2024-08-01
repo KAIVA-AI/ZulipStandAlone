@@ -308,7 +308,7 @@ different.
 
    ```bash
    apt install -y nginx-full
-   cp -a /home/zulipdev/zulip/tools/droplets/zulipdev /etc/nginx/sites-available/
+   vi /etc/nginx/sites-available/zulipdev
    ln -nsf /etc/nginx/sites-available/zulipdev /etc/nginx/sites-enabled/
    nginx -t  # Verifies your nginx configuration
    service nginx reload  # Actually enabled your nginx configuration

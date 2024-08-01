@@ -148,7 +148,8 @@ def update_messages_for_topic_edit(
         messages = messages.exclude(id=edited_message.id)
     if propagate_mode == "change_later":
         messages = messages.filter(id__gt=edited_message.id)
-
+    if propagate_mode == "change_this_and_following":
+        messages = messages.filter(id__gte=edited_message.id)
     if new_stream is not None:
         # If we're moving the messages between streams, only move
         # messages that the acting user can access, so that one cannot

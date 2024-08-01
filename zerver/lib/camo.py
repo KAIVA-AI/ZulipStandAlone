@@ -18,7 +18,7 @@ def get_camo_url(url: str) -> str:
     # Only encode the URL if Camo is enabled
     if settings.CAMO_URI == "":
         return url
-    return f"{settings.CAMO_URI}{generate_camo_url(url)}"
+    return f"{settings.EXTERNAL_URI_SCHEME}{settings.EXTERNAL_HOST}{settings.CAMO_URI}{generate_camo_url(url)}"
 
 
 def is_camo_url_valid(digest: str, url: str) -> bool:

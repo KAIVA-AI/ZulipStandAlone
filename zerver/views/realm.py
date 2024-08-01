@@ -27,11 +27,15 @@ from zerver.actions.realm_settings import (
     validate_authentication_methods_dict_from_api,
     validate_plan_for_authentication_methods,
 )
+from zerver.actions.realm_sync import (
+    do_sync_realm_and_users
+)
 from zerver.decorator import require_realm_admin, require_realm_owner
 from zerver.forms import check_subdomain_available as check_subdomain
 from zerver.lib.exceptions import JsonableError, OrganizationOwnerRequiredError
 from zerver.lib.i18n import get_available_language_codes
 from zerver.lib.response import json_success
+from zerver.lib.request import has_request_variables, REQ
 from zerver.lib.retention import parse_message_retention_days
 from zerver.lib.streams import access_stream_by_id
 from zerver.lib.typed_endpoint import (
@@ -66,6 +70,11 @@ from zerver.views.user_settings import (
     check_settings_values,
 )
 
+from zerver.lib.validator import (
+    check_dict,
+    check_list,
+    check_string,
+)
 
 def parse_jitsi_server_url(value: str, special_values_map: Mapping[str, str | None]) -> str | None:
     if value in special_values_map:
@@ -665,3 +674,22 @@ def update_realm_user_settings_defaults(
             do_set_realm_user_default_setting(realm_user_default, k, v, acting_user=user_profile)
 
     return json_success(request)
+
+
+@require_realm_owner
+@has_request_variables
+def sync_realm_and_users(request: HttpRequest,
+                         user_profile: UserProfile,
+                         ProjectCode: str = REQ(default=None),
+                         ProjectId: str = REQ(default=None),
+                         MemberList: list[dict[str, Any]] = REQ(
+                             json_validator=check_list(
+                                 check_dict([("full_name", check_string), ("role", check_string)])),
+                             default=[]),
+                         ProjectMetaData: list[dict[str, Any]] = REQ(
+                             json_validator=check_list(check_dict([])),
+                             default=[]),
+                         ) -> HttpResponse:
+    do_sync_realm_and_users(ProjectId, ProjectCode, MemberList, ProjectMetaData)
+    data = {"success": True}
+    return json_success(request, data=data)

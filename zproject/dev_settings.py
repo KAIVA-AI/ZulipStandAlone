@@ -35,7 +35,7 @@ if external_host_env is None:
         # Serve the main dev realm at the literal name "localhost",
         # so it works out of the box even when not on the Internet.
         REALM_HOSTS = {
-            "zulip": "localhost:9991",
+            "zulip": "zulipdev.com:9991",
         }
 else:
     EXTERNAL_HOST = external_host_env
@@ -63,7 +63,7 @@ AUTHENTICATION_BACKENDS: tuple[str, ...] = (
     "zproject.backends.GenericOpenIdConnectBackend",
 )
 
-EXTERNAL_URI_SCHEME = "http://"
+EXTERNAL_URI_SCHEME = os.getenv("EXTERNAL_URI_SCHEME", "http://")
 
 if os.getenv("BEHIND_HTTPS_PROXY"):
     # URLs served by the development environment will be HTTPS
@@ -217,3 +217,6 @@ ALLOW_GROUP_VALUED_SETTINGS = True
 # This value needs to be lower in development than usual to allow
 # for quicker testing of the feature.
 RESOLVE_TOPIC_UNDO_GRACE_PERIOD_SECONDS = 5
+
+ENDPOINT_CHAT_BOT="http://localhost:3001/"
+CELERY_BROKER_URL = f"redis://127.0.0.1:6379/"

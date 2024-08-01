@@ -199,3 +199,9 @@ django_stubs_ext
 # Structured data representation with parsing.
 pydantic
 annotated_types
+
+# CORS headers
+django-cors-headers
+
+openai
+replicate

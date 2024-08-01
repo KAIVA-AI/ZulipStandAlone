@@ -21,7 +21,7 @@ from zerver.lib.request import RequestNotes
 from zerver.lib.response import json_method_not_allowed
 
 ParamT = ParamSpec("ParamT")
-METHODS = ("GET", "HEAD", "POST", "PUT", "DELETE", "PATCH")
+METHODS = ("GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
 
 
 def default_never_cache_responses(
@@ -190,6 +190,9 @@ def rest_dispatch(request: HttpRequest, /, **kwargs: object) -> HttpResponse:
         # For endpoints that support anonymous web access, we do that.
         # TODO: Allow /api calls when this is stable enough.
         target_function = csrf_protect(public_json_view(target_function))
+    elif "allow_anonymous_api" in view_flags:
+        # passthrough for API calls that don't require authentication
+        target_function = target_function
     else:
         # Otherwise, throw an authentication error; our middleware
         # will generate the appropriate HTTP response.

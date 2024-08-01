@@ -195,6 +195,7 @@ def do_create_realm(
     prereg_realm: PreregistrationRealm | None = None,
     how_realm_creator_found_zulip: str | None = None,
     how_realm_creator_found_zulip_extra_context: str | None = None,
+    message_content_edit_limit_seconds: int | None = None,
 ) -> Realm:
     if string_id in [settings.SOCIAL_AUTH_SUBDOMAIN, settings.SELF_HOSTING_MANAGEMENT_SUBDOMAIN]:
         raise AssertionError(
@@ -207,6 +208,7 @@ def do_create_realm(
         create_internal_realm()
 
     kwargs: dict[str, Any] = {}
+    kwargs['message_content_edit_limit_seconds'] = message_content_edit_limit_seconds
     if emails_restricted_to_domains is not None:
         kwargs["emails_restricted_to_domains"] = emails_restricted_to_domains
     if description is not None:

@@ -107,6 +107,8 @@ if has_application_server():
 if has_process_fts_updates():
     workers.append("process-fts-updates")
 
+workers.append("zulip_celery")
+
 # Before we start (re)starting main services, make sure to start any
 # optional auxiliary services that we don't stop, but do expect to be
 # running, and aren't currently.  These get new versions by getting

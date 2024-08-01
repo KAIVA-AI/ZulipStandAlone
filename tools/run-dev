@@ -108,7 +108,7 @@ if options.behind_https_proxy:
 
 from scripts.lib.zulip_tools import CYAN, ENDC
 
-proxy_port = base_port
+proxy_port = os.getenv("ZULIP_BASE_PORT", base_port)
 django_port = base_port + 1
 tornado_port = base_port + 2
 webpack_port = base_port + 3
@@ -171,6 +171,7 @@ def server_processes() -> list[list[str]]:
             "--quiet",
         ],
         ["./manage.py", "deliver_scheduled_messages"],
+        ["./start_celery.sh"],
     ]
 
     # NORMAL (but slower) operation:
@@ -194,7 +195,7 @@ def start_webpack_watcher() -> "subprocess.Popen[bytes]":
         # to disable the webpack host check so that webpack will serve assets.
         webpack_cmd.append("--disable-host-check")
     if options.interface:
-        webpack_cmd.append(f"--host={options.interface}")
+        webpack_cmd.append(f"--host=127.0.0.1")
     else:
         webpack_cmd.append("--host=0.0.0.0")
     return subprocess.Popen(webpack_cmd)

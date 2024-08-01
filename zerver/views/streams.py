@@ -11,6 +11,8 @@ from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 from pydantic import BaseModel, Field, Json, NonNegativeInt, StringConstraints, model_validator
+from zerver.views.assistant import update_assistant_job_by_external_id
+from django.db.models import (Min)
 
 from zerver.actions.default_streams import (
     do_add_default_stream,
@@ -42,13 +44,13 @@ from zerver.actions.streams import (
     get_subscriber_ids,
 )
 from zerver.context_processors import get_valid_realm_from_request
-from zerver.decorator import require_non_guest_user, require_realm_admin
+from zerver.decorator import require_non_guest_user, require_realm_admin, require_post
 from zerver.lib.default_streams import get_default_stream_ids_for_realm
 from zerver.lib.email_mirror_helpers import encode_email_address
 from zerver.lib.exceptions import JsonableError, OrganizationOwnerRequiredError
 from zerver.lib.mention import MentionBackend, silent_mention_syntax_for_user
 from zerver.lib.message import bulk_access_stream_messages_query
-from zerver.lib.response import json_success
+from zerver.lib.response import json_success, json_response
 from zerver.lib.retention import STREAM_MESSAGE_BATCH_SIZE as RETENTION_STREAM_MESSAGE_BATCH_SIZE
 from zerver.lib.retention import parse_message_retention_days
 from zerver.lib.stream_traffic import get_streams_traffic
@@ -71,15 +73,20 @@ from zerver.lib.topic import (
     get_topic_history_for_public_stream,
     get_topic_history_for_stream,
     messages_for_topic,
+    update_messages_for_topic_edit
 )
 from zerver.lib.typed_endpoint import ApiParamConfig, PathOnly, typed_endpoint
 from zerver.lib.typed_endpoint_validators import check_color, check_int_in_validator
 from zerver.lib.user_groups import access_user_group_for_setting
 from zerver.lib.users import access_user_by_email, access_user_by_id
 from zerver.lib.utils import assert_is_not_none
-from zerver.models import NamedUserGroup, Realm, Stream, UserProfile
+from zerver.models import NamedUserGroup, Realm, Stream, UserProfile, Message
 from zerver.models.users import get_system_bot
-
+from zerver.lib.timestamp import datetime_to_timestamp
+from django.utils.timezone import now as timezone_now
+from zerver.lib.types import EditHistoryEvent
+from zerver.lib.request import REQ, has_request_variables
+from zerver.lib.validator import to_non_negative_int
 
 def principal_to_user_profile(agent: UserProfile, principal: str | int) -> UserProfile:
     if isinstance(principal, str):
@@ -895,6 +902,58 @@ def get_topics_backend(
         )
 
     return json_success(request, data=dict(topics=result))
+
+# move all message from topic A to topic B
+@require_post
+@has_request_variables
+def migrate_topic(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    stream_id: int = REQ(converter=to_non_negative_int, path_only=True),
+    from_topic: str = REQ(),
+    to_topic: str = REQ(),
+    external_id: str = REQ(default=None),
+    to_stream_id: int = REQ(),
+) -> HttpResponse:
+    stream = Stream.objects.filter(id=stream_id).first()
+    if not stream:
+        return json_response(res_type='error',msg=f"Stream {stream} doesn't exist", status=404)
+    if stream_id == to_stream_id:
+        to_stream = None
+    else:
+        to_stream = Stream.objects.filter(id=to_stream_id).first()
+        if not to_stream:
+            return json_response(res_type='error', msg=f"Stream {to_stream} doesn't exist", status=404)
+    first_message_id_from_topic = Message.objects.filter(recipient=stream.recipient_id,
+                                                        subject=from_topic).values('subject').annotate(first_id=Min('id'))
+    timestamp = timezone_now()
+
+    edit_history_event: EditHistoryEvent = {
+        "user_id": user_profile.id,
+        "timestamp": datetime_to_timestamp(timestamp),
+        "prev_topic": from_topic,
+        "topic": to_topic,
+        "prev_stream": to_stream_id,
+        "stream": stream_id,
+    }
+
+    # do migrate all message to new topic
+    message_migrated = update_messages_for_topic_edit(
+        acting_user=user_profile,
+        edited_message=Message.objects.get(id=first_message_id_from_topic[0]['first_id']),
+        propagate_mode='change_this_and_following',
+        orig_topic_name=from_topic,
+        topic_name=to_topic,
+        new_stream=to_stream,
+        old_stream=stream,
+        edit_history_event=edit_history_event,
+        last_edit_time=timestamp,
+    )
+    # update external_id to new topic
+    if external_id:
+        assistant_job = update_assistant_job_by_external_id(external_id, to_topic)
+
+    return json_success(request, data=dict(topic=to_topic,total_msg=len(message_migrated)))
 
 
 @require_realm_admin

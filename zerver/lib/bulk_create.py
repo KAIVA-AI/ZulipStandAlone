@@ -55,6 +55,7 @@ def bulk_create_users(
             initial_password(email),
             active,
             bot_type,
+            None,
             full_name,
             bot_owner,
             False,

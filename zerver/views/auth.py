@@ -3,7 +3,7 @@ import secrets
 from collections.abc import Callable, Mapping
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Concatenate, TypeAlias, cast
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode, urljoin, urlparse
 
 import jwt
 import orjson
@@ -62,7 +62,7 @@ from zerver.lib.realm_icon import realm_icon_url
 from zerver.lib.request import REQ, RequestNotes, has_request_variables
 from zerver.lib.response import json_success
 from zerver.lib.sessions import set_expirable_session_var
-from zerver.lib.subdomains import get_subdomain, is_subdomain_root_or_alias
+from zerver.lib.subdomains import get_subdomain, is_subdomain_root_or_alias, get_subdomain_from_hostname
 from zerver.lib.url_encoding import append_url_query_string
 from zerver.lib.user_agent import parse_user_agent
 from zerver.lib.users import get_api_key, get_users_for_api, is_2fa_verified
@@ -546,15 +546,19 @@ def remote_user_sso(
 
 @has_request_variables
 def get_email_and_realm_from_jwt_authentication_request(
-    request: HttpRequest, json_web_token: str
+    request: HttpRequest, json_web_token: str, agent_name: str
 ) -> tuple[str, Realm]:
     realm = get_realm_from_request(request)
     if realm is None:
         raise InvalidSubdomainError
 
     try:
-        key = settings.JWT_AUTH_KEYS[realm.subdomain]["key"]
-        algorithms = settings.JWT_AUTH_KEYS[realm.subdomain]["algorithms"]
+        if agent_name is None:
+            key = settings.JWT_AUTH_KEYS[realm.subdomain]["key"]
+            algorithms = settings.JWT_AUTH_KEYS[realm.subdomain]["algorithms"]
+        else:
+            key = settings.JWT_AUTH_KEYS[agent_name]["key"]
+            algorithms = settings.JWT_AUTH_KEYS[agent_name]["algorithms"]
     except KeyError:
         raise JsonableError(_("JWT authentication is not enabled for this organization"))
 
@@ -578,9 +582,8 @@ def get_email_and_realm_from_jwt_authentication_request(
 @require_post
 @log_view_func
 @has_request_variables
-def remote_user_jwt(request: HttpRequest, token: str = REQ(default="")) -> HttpResponse:
-    email, realm = get_email_and_realm_from_jwt_authentication_request(request, token)
-
+def remote_user_jwt(request: HttpRequest, token: str = REQ(default=""), agent_name: str = REQ(default=None)) -> HttpResponse:
+    email, realm = get_email_and_realm_from_jwt_authentication_request(request, token, agent_name)
     user_profile = authenticate(username=email, realm=realm, use_dummy_backend=True)
     if user_profile is None:
         result = ExternalAuthResult(
@@ -589,7 +592,28 @@ def remote_user_jwt(request: HttpRequest, token: str = REQ(default="")) -> HttpR
     else:
         assert isinstance(user_profile, UserProfile)
         result = ExternalAuthResult(user_profile=user_profile)
+    return login_or_register_remote_user(request, result)
 
+
+@csrf_exempt
+@log_view_func
+@has_request_variables
+def remote_user_api_key(
+    request: HttpRequest,
+    /,
+    token: str = REQ(default=""),
+    agent_name: str = REQ(default=""),
+    **kwargs: Any,
+) -> HttpResponse:
+    email, realm = get_email_and_realm_from_jwt_authentication_request(request, token, agent_name)
+    user_profile = authenticate(username=email, realm=realm, use_dummy_backend=True)
+    if user_profile is None:
+        result = ExternalAuthResult(
+            data_dict={"email": email, "full_name": "", "subdomain": realm.subdomain}
+        )
+    else:
+        assert isinstance(user_profile, UserProfile)
+        result = ExternalAuthResult(user_profile=user_profile)
     return login_or_register_remote_user(request, result)
 
 
@@ -857,7 +881,8 @@ def login_page(
     # To support previewing the Zulip login pages, we have a special option
     # that disables the default behavior of redirecting logged-in users to the
     # logged-in app.
-    is_preview = "preview" in request.GET
+    is_preview = "preview" in request.session
+
     if settings.TWO_FACTOR_AUTHENTICATION_ENABLED:
         if request.user.is_authenticated and is_2fa_verified(request.user):
             redirect_to = get_safe_redirect_to(next, request.user.realm.url)
@@ -1008,8 +1033,9 @@ def jwt_fetch_api_key(
     request: HttpRequest,
     include_profile: bool = REQ(default=False, json_validator=check_bool),
     token: str = REQ(default=""),
+    agent_name: str = REQ(default=None)
 ) -> HttpResponse:
-    remote_email, realm = get_email_and_realm_from_jwt_authentication_request(request, token)
+    remote_email, realm = get_email_and_realm_from_jwt_authentication_request(request, token, agent_name)
 
     return_data: dict[str, bool] = {}
 

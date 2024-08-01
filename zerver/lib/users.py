@@ -37,6 +37,8 @@ from zerver.models import (
     Subscription,
     UserMessage,
     UserProfile,
+    Stream,
+    Evaluation
 )
 from zerver.models.groups import SystemGroups
 from zerver.models.realms import BotCreationPolicyEnum, get_fake_email_domain, require_unique_names
@@ -49,6 +51,12 @@ from zerver.models.users import (
     get_user_profile_by_id_in_realm,
     is_cross_realm_bot_email,
 )
+from zerver.models.evaluation import DEFINE_EVALUATION_REQ, DEFINE_EVALUATION_ISSUE, DEFINE_EVALUATION_TC
+from zerver.lib.cache import bot_dict_fields
+from django.db.models import Q, CharField, Value
+from django.db.models.functions import Coalesce
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.fields import ArrayField
 
 
 def check_full_name(
@@ -512,6 +520,8 @@ def format_user_row(
         is_active=row["is_active"],
         date_joined=row["date_joined"].isoformat(),
         delivery_email=delivery_email,
+        default_sending_stream=row.get("default_sending_stream"),
+        evaluation=row.get("evaluation")
     )
 
     if acting_user is None:
@@ -555,6 +565,7 @@ def format_user_row(
 
     if is_bot:
         result["bot_type"] = row["bot_type"]
+        result["assistant_type"] = row.get("assistant_type")
         if is_cross_realm_bot_email(row["email"]):
             result["is_system_bot"] = True
 
@@ -1013,6 +1024,17 @@ def get_users_for_api(
         profiles_by_user_id = get_custom_profile_field_values(custom_profile_field_values)
 
     result = {}
+    bot_profile = UserProfile.objects.filter(realm=realm, is_bot=True).values(*bot_dict_fields)
+    bot_profile_ids = [bot_dict["id"] for bot_dict in bot_profile]
+    evaluation_template_by_services = Evaluation.objects.filter(user_profile__in=bot_profile_ids).values(
+        "user_profile_id").annotate(tags=Coalesce(
+        ArrayAgg(
+            "tag",
+            distinct=True,
+            filter=~Q(tag__isnull=True),
+        ),
+        Value([], output_field=ArrayField(CharField())),
+    ))
     for row in accessible_user_dicts:
         if profiles_by_user_id is not None:
             custom_profile_field_data = profiles_by_user_id.get(row["id"], {})
@@ -1020,6 +1042,13 @@ def get_users_for_api(
             client_gravatar
             and row["email_address_visibility"] == UserProfile.EMAIL_ADDRESS_VISIBILITY_EVERYONE
         )
+        evaluations = list(
+            filter(lambda x: x['user_profile_id'] == row['id'], list(evaluation_template_by_services)))
+        bot_evaluation = evaluations[0]['tags'] if evaluations else []
+        bot_evaluation_dict = [{"key": evaluation, "message":
+            dict(DEFINE_EVALUATION_REQ + DEFINE_EVALUATION_TC + DEFINE_EVALUATION_ISSUE)[evaluation]} for
+                               evaluation in bot_evaluation]
+        row['evaluation'] = bot_evaluation_dict
         result[row["id"]] = format_user_row(
             realm.id,
             acting_user=acting_user,
@@ -1082,6 +1111,8 @@ def get_users_with_access_to_real_email(user_profile: UserProfile) -> list[int]:
         )
     ]
 
+def get_realm_bot_profile(realm: Realm, type: int = 1):
+    return UserProfile.objects.filter(realm=realm, bot_type=type)
 
 def max_message_id_for_user(user_profile: UserProfile | None) -> int:
     if user_profile is None:

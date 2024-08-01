@@ -43,6 +43,7 @@ from zerver.models.streams import (
 )
 from zerver.models.users import active_non_guest_user_ids, active_user_ids, is_cross_realm_bot_email
 from zerver.tornado.django_api import send_event_on_commit
+from zerver.lib.topic import get_topic_history_for_stream
 
 
 class StreamDict(TypedDict, total=False):
@@ -951,7 +952,14 @@ def get_streams_for_user(
         else:
             # Don't bother going to the database with no valid sources
             return []
-
+    for stream in streams:
+        topics = get_topic_history_for_stream(user_profile=user_profile,
+                                              recipient_id=stream.recipient_id,
+                                              public_history=stream.history_public_to_subscribers)
+        stream.topics = topics
+        bot_default_stream = UserProfile.objects.filter(is_bot=True, default_sending_stream=stream.id).first()
+        if bot_default_stream:
+            stream.mention_bot_default = bot_default_stream.full_name
     return list(streams)
 
 

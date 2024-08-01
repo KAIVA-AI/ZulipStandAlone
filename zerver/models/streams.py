@@ -87,6 +87,12 @@ class Stream(models.Model):
 
     # Who in the organization has permission to send messages to this stream.
     stream_post_policy = models.PositiveSmallIntegerField(default=STREAM_POST_POLICY_EVERYONE)
+
+    STREAM_PUBLIC = 1
+    STREAM_ASSISTANT = 2
+    STREAM_DRAFT = 3
+    external_stream_type = models.PositiveSmallIntegerField(default=STREAM_PUBLIC)
+
     POST_POLICIES: dict[int, StrPromise] = {
         # These strings should match the strings in the
         # stream_post_policy_values object in stream_data.js.
@@ -179,6 +185,8 @@ class Stream(models.Model):
     # * is_in_zephyr_realm is a backend-only optimization.
     # * "deactivated" streams are filtered from the API entirely.
     # * "realm" and "recipient" are not exposed to clients via the API.
+    # * "external_stream_type" use for external feature.
+
     API_FIELDS = [
         "creator_id",
         "date_created",
@@ -193,6 +201,8 @@ class Stream(models.Model):
         "rendered_description",
         "stream_post_policy",
         "can_remove_subscribers_group_id",
+        "external_stream_type",
+        "recipient_id"
     ]
 
     def to_dict(self) -> DefaultStreamDict:
@@ -211,6 +221,8 @@ class Stream(models.Model):
             stream_id=self.id,
             stream_post_policy=self.stream_post_policy,
             is_announcement_only=self.stream_post_policy == Stream.STREAM_POST_POLICY_ADMINS,
+            recipient_id=self.recipient.id,
+            external_stream_type=self.external_stream_type,
         )
 
 

@@ -52,6 +52,7 @@ class RequestNotes(BaseNotes[HttpRequest, "RequestNotes"]):
     ratelimits_applied: list[rate_limiter.RateLimitResult] = field(default_factory=list)
     query: str | None = None
     error_format: str | None = None
+    placeholder_open_graph_description: str | None = None
     saved_response: HttpResponse | None = None
     tornado_handler_id: int | None = None
     processed_parameters: set[str] = field(default_factory=set)

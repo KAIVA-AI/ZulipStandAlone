@@ -171,6 +171,7 @@ def build_page_params_for_home_page_load(
             client_capabilities=client_capabilities,
             narrow=narrow,
             include_streams=False,
+            sender_apply_raw_content=[],
         )
         queue_id = state_data["queue_id"]
         default_language = state_data["user_settings"]["default_language"]

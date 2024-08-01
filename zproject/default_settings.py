@@ -200,6 +200,8 @@ RABBITMQ_USERNAME = "zulip"
 RABBITMQ_USE_TLS = False
 REDIS_HOST = "127.0.0.1"
 REDIS_PORT = 6379
+REDIS_PASSWORD = get_secret('redis_password','')
+REDIS_USER = get_secret('redis_user','default')
 REMOTE_POSTGRES_HOST = ""
 REMOTE_POSTGRES_PORT = ""
 REMOTE_POSTGRES_SSLMODE = ""
@@ -261,7 +263,7 @@ DEFAULT_RATE_LIMITING_RULES = {
     # used by the public access option). Since these are
     # unauthenticated requests, each IP address is a separate bucket.
     "api_by_ip": [
-        (60, 100),
+        (200, 100),
     ],
     # Limits total requests to the Mobile Push Notifications Service
     # by each individual Zulip server that is using the service. This
@@ -280,7 +282,7 @@ DEFAULT_RATE_LIMITING_RULES = {
     # authentication is successful.
     "authenticate_by_username": [
         # 5 failed login attempts within 30 minutes
-        (1800, 5),
+        (300, 15),
     ],
     # Limits how many requests a user can make to change their email
     # address. A low/strict limit is recommended here, since there is
@@ -507,7 +509,18 @@ FIRST_TIME_TERMS_OF_SERVICE_TEMPLATE: str | None = None
 TERMS_OF_SERVICE_MESSAGE: str | None = None
 
 # Configuration for JWT auth (sign in and API key fetch)
-JWT_AUTH_KEYS: dict[str, JwtAuthKey] = {}
+JWT_AUTH_KEYS: dict[str, JwtAuthKey] = {
+    "affine": {
+        "key": get_secret("affine_jwt_auth_key"),
+        # Algorithm with which the JWT token are signed.
+        "algorithms": ["ES256"],
+    },
+    "vcollab": {
+       "key": get_secret("vcollab_jwt_auth_key"),
+        # Algorithm with which the JWT token are signed.
+       "algorithms": get_secret("vcollab_jwt_algorithm"),
+    }
+}
 
 # https://docs.djangoproject.com/en/5.0/ref/settings/#std:setting-SERVER_EMAIL
 # Django setting for what from address to use in error emails.
@@ -618,7 +631,7 @@ OUTGOING_WEBHOOK_TIMEOUT_SECONDS = 10
 # Maximum length of message content allowed.
 # Any message content exceeding this limit will be truncated.
 # See: `_internal_prep_message` function in zerver/actions/message_send.py.
-MAX_MESSAGE_LENGTH = 10000
+MAX_MESSAGE_LENGTH = 100000
 
 # The maximum number of drafts to send in the response to /register.
 # More drafts, should they exist for some crazy reason, could be
@@ -670,3 +683,9 @@ ALLOW_GROUP_VALUED_SETTINGS = False
 # notification to a stream and also delete the previous counter
 # notification.
 RESOLVE_TOPIC_UNDO_GRACE_PERIOD_SECONDS = 60
+
+# Celery Configuration
+# CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_BROKER_URL = f"redis://{REDIS_USER}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/"

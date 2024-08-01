@@ -194,6 +194,9 @@ def get_events_backend(
     user_list_incomplete: bool = REQ(
         default=False, json_validator=check_bool, intentionally_undocumented=True
     ),
+    sender_apply_raw_content: Sequence[str] = REQ(
+        default=[], json_validator=check_list(check_string), intentionally_undocumented=True
+    ),
 ) -> HttpResponse:
     if all_public_streams and not user_profile.can_access_public_streams():
         raise JsonableError(_("User not authorized for this query"))
@@ -228,6 +231,7 @@ def get_events_backend(
             pronouns_field_type_supported=pronouns_field_type_supported,
             linkifier_url_template=linkifier_url_template,
             user_list_incomplete=user_list_incomplete,
+            sender_apply_raw_content=sender_apply_raw_content
         )
 
     result = in_tornado_thread(fetch_events)(

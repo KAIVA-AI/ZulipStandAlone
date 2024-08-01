@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Annotated
+from typing import Annotated, Sequence
 
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
@@ -13,7 +13,9 @@ from sqlalchemy.types import Integer, Text
 
 from zerver.context_processors import get_valid_realm_from_request
 from zerver.lib.exceptions import JsonableError, MissingAuthenticationError
-from zerver.lib.message import get_first_visible_message_id, messages_for_ids
+from zerver.lib.message import get_first_visible_message_id, messages_for_ids, \
+    get_n_latest_messages_sent_to_bot, get_receiver_in_group_direct_message_by_user_profile, \
+    get_recent_private_conversations
 from zerver.lib.narrow import (
     NarrowParameter,
     add_narrow_conditions,
@@ -23,13 +25,19 @@ from zerver.lib.narrow import (
     parse_anchor_value,
     update_narrow_terms_containing_with_operator,
 )
-from zerver.lib.request import RequestNotes
+from zerver.lib.request import RequestNotes, has_request_variables, REQ
+from zerver.lib.validator import check_int_range, check_required_string, check_int
 from zerver.lib.response import json_success
 from zerver.lib.sqlalchemy_utils import get_sqlalchemy_connection
 from zerver.lib.topic import DB_TOPIC_NAME, MATCH_TOPIC
 from zerver.lib.topic_sqlalchemy import topic_column_sa
 from zerver.lib.typed_endpoint import ApiParamConfig, typed_endpoint
-from zerver.models import UserMessage, UserProfile
+from zerver.models import UserMessage, UserProfile, Recipient, Subscription, EvaluationAssistantJob
+import json
+from django.db.models import Q, CharField, Value, IntegerField, F
+from django.db.models.functions import Coalesce
+from django.contrib.postgres.aggregates import ArrayAgg
+from django.contrib.postgres.fields import ArrayField
 
 MAX_MESSAGES_PER_FETCH = 5000
 
@@ -114,6 +122,8 @@ def get_messages_backend(
     ] = False,
     client_gravatar: Json[bool] = True,
     apply_markdown: Json[bool] = True,
+    sender_apply_raw_content: Sequence[str] | None = [],
+    language: str | None = None
 ) -> HttpResponse:
     realm = get_valid_realm_from_request(request)
     anchor = parse_anchor_value(anchor_val, use_first_unread_anchor_val)
@@ -272,8 +282,16 @@ def get_messages_backend(
             allow_edit_history=realm.allow_edit_history,
             user_profile=user_profile,
             realm=realm,
+            sender_apply_raw_content=sender_apply_raw_content,
+            language=language,
         )
-
+    # mark evaluated flags for model evaluation agent
+    evaluative_msg = EvaluationAssistantJob.objects.filter(message__id__in=message_ids,
+                                                           user_profile=user_profile)
+    evaluative_msg_ids = [evaluation.message.id for evaluation in list(evaluative_msg)]
+    for msg in message_list:
+        msg['is_evaluated'] = True if msg['id'] in evaluative_msg_ids else False
+    # done mark
     ret = dict(
         messages=message_list,
         result="success",
@@ -347,3 +365,66 @@ def messages_in_narrow_backend(
             )
 
     return json_success(request, data={"messages": search_fields})
+
+
+@has_request_variables
+def get_chatbot_context(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    number_of_latest_messages: int = REQ(json_validator=check_int_range(1,20)),
+    topic_name: str = REQ(str_validator=check_required_string),
+    stream_id: int = REQ(json_validator=check_int),
+    bot_name: str = REQ(str_validator=check_required_string)
+) -> HttpResponse:
+     context_messages = get_n_latest_messages_sent_to_bot(number_of_latest_messages, topic_name, stream_id, bot_name)
+     context_messages = list(context_messages)
+     ret = dict(
+        context_messages=context_messages,
+        result="success",
+        msg=""
+     )
+     return json_success(request, data=ret)
+
+
+@has_request_variables
+def get_list_user_direct_message(
+    request: HttpRequest,
+    user_profile: UserProfile
+) -> HttpResponse:
+     # get dm private message
+     data = get_recent_private_conversations(user_profile=user_profile)
+     receivers = [i['user_ids'][0] if i['user_ids'] else None for i in data.values()]
+     user_profile_list = UserProfile.objects.filter(id__in=receivers, is_active=True).exclude(bot_type=1).values("full_name", "id")
+     # end get dm pm
+
+     # get dm groups message
+     data_groups = get_receiver_in_group_direct_message_by_user_profile(user_profile.id)
+     direct_message_group = []
+     _type = Recipient._type_names
+
+     subcriptions = Subscription.objects.filter(
+         recipient_id__in=list(map(lambda x: x['recipient_id'], data_groups))).exclude(
+         user_profile_id=user_profile.id).values("recipient_id").annotate(
+         user_profile_ids=Coalesce(
+             ArrayAgg(
+                 "user_profile_id",
+                 distinct=True,
+             ),
+             Value([], output_field=ArrayField(IntegerField())),
+         ))
+     groups = [sub.get('user_profile_ids') for sub in subcriptions]
+     print("groups ", groups)
+
+     for group in groups:
+         user_profile_group = UserProfile.objects.filter(id__in=group, is_active=True).exclude(bot_type=1).values("full_name", "id")
+         data_user_group = [
+             {"full_name": ", ".join(list(set([user.get('full_name') for user in user_profile_group]))),
+              "id": list(set([user.get('id') for user in user_profile_group]))}
+         ]
+         direct_message_group += data_user_group
+     # end get dm groups
+     result = {
+         "direct_message": json.loads(json.dumps(list(user_profile_list))) + direct_message_group
+     }
+
+     return json_success(request, data=result)

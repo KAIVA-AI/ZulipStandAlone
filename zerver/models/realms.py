@@ -22,6 +22,7 @@ from zerver.lib.utils import generate_api_key
 from zerver.models.constants import MAX_LANGUAGE_ID_LENGTH
 from zerver.models.groups import SystemGroups
 from zerver.models.users import UserProfile
+from scripts.lib.zulip_tools import deport
 
 if TYPE_CHECKING:
     # We use BaseBackend only for typing. Importing it otherwise causes circular dependency.
@@ -1212,8 +1213,8 @@ class InvalidFakeEmailDomainError(Exception):
 def get_fake_email_domain(realm_host: str) -> str:
     try:
         # Check that realm.host can be used to form valid email addresses.
-        validate_email(Address(username="bot", domain=realm_host).addr_spec)
-        return realm_host
+        validate_email(Address(username="bot", domain=deport(realm_host)).addr_spec)
+        return deport(realm_host)
     except ValidationError:
         pass
 

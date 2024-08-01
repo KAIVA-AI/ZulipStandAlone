@@ -1,6 +1,7 @@
 FROM ubuntu:22.04
 
 ARG UBUNTU_MIRROR
+ENV TZ="Asia/Ho_Chi_Minh"
 
 # Basic packages and dependencies of docker-systemctl-replacement
 RUN echo locales locales/default_environment_locale select C.UTF-8 | debconf-set-selections \
@@ -21,6 +22,7 @@ RUN echo locales locales/default_environment_locale select C.UTF-8 | debconf-set
            python3 \
            sudo \
            systemd \
+           vim \
     && rm -rf /var/lib/apt/lists/*
 
 ARG VAGRANT_UID

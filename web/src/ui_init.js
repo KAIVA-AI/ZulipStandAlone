@@ -165,10 +165,13 @@ function initialize_bottom_whitespace() {
 }
 
 function initialize_navbar() {
+    console.log("PARAMS ", page_params)
+    let full_name = page_params.user_id !==undefined ? people.get_display_full_name(page_params.user_id) : '';
     const rendered_navbar = render_navbar({
         embedded: page_params.narrow_stream !== undefined,
         user_avatar: current_user.avatar_url_medium,
         realm_icon_url: realm.realm_icon_url,
+        full_name: full_name,
     });
 
     $("#header-container").html(rendered_navbar);

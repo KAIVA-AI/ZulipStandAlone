@@ -90,6 +90,7 @@ def request_event_queue(
     pronouns_field_type_supported: bool = True,
     linkifier_url_template: bool = False,
     user_list_incomplete: bool = False,
+    sender_apply_raw_content: Sequence[str] | None = [],
 ) -> str | None:
     if not settings.USING_TORNADO:
         return None
@@ -117,6 +118,9 @@ def request_event_queue(
 
     if event_types is not None:
         req["event_types"] = orjson.dumps(event_types)
+
+    if sender_apply_raw_content is not None:
+        req["sender_apply_raw_content"] = orjson.dumps(sender_apply_raw_content)
 
     resp = requests_client().post(tornado_url + "/api/v1/events/internal", data=req)
     return resp.json()["queue_id"]

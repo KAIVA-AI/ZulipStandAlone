@@ -17,13 +17,14 @@ from zerver.actions.message_send import (
 )
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.markdown import render_message_markdown
+from zerver.lib.message import get_n_latest_messages_sent_to_bot, translate_msg_with_auto_mode
 from zerver.lib.request import REQ, RequestNotes, has_request_variables
 from zerver.lib.response import json_success
 from zerver.lib.topic import REQ_topic
 from zerver.lib.validator import check_bool, check_string_in, to_float
 from zerver.lib.zcommand import process_zcommands
 from zerver.lib.zephyr import compute_mit_user_fullname
-from zerver.models import Client, Message, RealmDomain, UserProfile
+from zerver.models import Client, Message, RealmDomain, UserProfile, Recipient
 from zerver.models.users import get_user_including_cross_realm
 
 
@@ -133,11 +134,13 @@ def send_message_backend(
     forged_str: str | None = REQ("forged", default=None, documentation_pending=True),
     topic_name: str | None = REQ_topic(),
     message_content: str = REQ("content"),
+    language: str = REQ(default=None),
     widget_content: str | None = REQ(default=None, documentation_pending=True),
     local_id: str | None = REQ(default=None),
     queue_id: str | None = REQ(default=None),
     time: float | None = REQ(default=None, converter=to_float, documentation_pending=True),
     read_by_sender: bool | None = REQ(json_validator=check_bool, default=None),
+    stream_id: int = REQ(default=1)
 ) -> HttpResponse:
     recipient_type_name = req_type
     if recipient_type_name == "direct":
@@ -234,6 +237,8 @@ def send_message_backend(
         read_by_sender = client.default_read_by_sender()
 
     data: dict[str, int] = {}
+    # Fixed bot_name = VietISBot and limit 5 latest messages
+    context_messages = get_n_latest_messages_sent_to_bot(10, topic_name, stream_id, "VietISBot")
     sent_message_result = check_send_message(
         sender,
         client,
@@ -241,6 +246,7 @@ def send_message_backend(
         message_to,
         topic_name,
         message_content,
+        language=language,
         forged=forged,
         forged_timestamp=time,
         forwarder_user_profile=user_profile,
@@ -249,6 +255,7 @@ def send_message_backend(
         sender_queue_id=queue_id,
         widget_content=widget_content,
         read_by_sender=read_by_sender,
+        context_messages=context_messages,
     )
     data["id"] = sent_message_result.message_id
     if sent_message_result.automatic_new_visibility_policy:

@@ -456,8 +456,11 @@ realm_user_dict_fields: list[str] = [
     "bot_owner_id",
     "delivery_email",
     "bot_type",
+    "assistant_type",
     "long_term_idle",
     "email_address_visibility",
+    "realm_id",
+    "default_sending_stream"
 ]
 
 

@@ -195,7 +195,7 @@ def home_real(request: HttpRequest) -> HttpResponse:
     # We need to modify the session object every two weeks or it will expire.
     # This line makes reloading the page a sufficient action to keep the
     # session alive.
-    request.session.modified = True
+    # request.session.modified = True
 
     if request.user.is_authenticated:
         user_profile = request.user

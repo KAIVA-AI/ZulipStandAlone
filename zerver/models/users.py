@@ -437,6 +437,15 @@ class UserProfile(AbstractBaseUser, PermissionsMixin, UserBaseSettings):
         EMBEDDED_BOT,
     ]
 
+    ASSISTANT_TYPE = {
+        1: "Chat gpt",
+        2: "Communicator",
+        3: "Tot",
+        4: "Assistant Requirement",
+        5: "Assistant TestCase",
+        6: "Assistant Issue",
+    }
+
     id = models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")
 
     # For historical reasons, Zulip has two email fields.  The
@@ -503,6 +512,8 @@ class UserProfile(AbstractBaseUser, PermissionsMixin, UserBaseSettings):
     is_bot = models.BooleanField(default=False, db_index=True)
     bot_type = models.PositiveSmallIntegerField(null=True, db_index=True)
     bot_owner = models.ForeignKey("self", null=True, on_delete=models.SET_NULL)
+
+    assistant_type = models.PositiveSmallIntegerField(null=True, db_index=True)
 
     # Each role has a superset of the permissions of the next higher
     # numbered role.  When adding new roles, leave enough space for
@@ -936,7 +947,10 @@ def get_user_profile_by_email(email: str) -> UserProfile:
     multiple users with a given (delivery) email address existing on a
     single server (in different realms).
     """
-    return UserProfile.objects.select_related("realm").get(delivery_email__iexact=email.strip())
+    try:
+        return UserProfile.objects.select_related().get(delivery_email__iexact=email.strip())
+    except UserProfile.DoesNotExist:
+        return None
 
 
 @cache_with_key(user_profile_by_api_key_cache_key, timeout=3600 * 24 * 7)

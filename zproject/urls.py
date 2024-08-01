@@ -14,6 +14,8 @@ from django.urls.resolvers import URLPattern, URLResolver
 from django.utils.module_loading import import_string
 from django.views.generic import RedirectView
 
+from django_scim import views as scim_views
+
 from zerver.forms import LoggingSetPasswordForm
 from zerver.lib.integrations import WEBHOOK_INTEGRATIONS
 from zerver.lib.rest import rest_path
@@ -37,6 +39,7 @@ from zerver.views.auth import (
     logout_view,
     password_reset,
     remote_user_jwt,
+    remote_user_api_key,
     remote_user_sso,
     saml_sp_metadata,
     show_deactivation_notice,
@@ -75,7 +78,12 @@ from zerver.views.message_edit import (
     json_fetch_raw_message,
     update_message_backend,
 )
-from zerver.views.message_fetch import get_messages_backend, messages_in_narrow_backend
+from zerver.views.message_fetch import (
+    get_messages_backend,
+    messages_in_narrow_backend,
+    get_chatbot_context,
+    get_list_user_direct_message
+)
 from zerver.views.message_flags import (
     mark_all_as_read,
     mark_stream_as_read,
@@ -104,6 +112,7 @@ from zerver.views.push_notifications import (
     send_test_push_notification_api,
 )
 from zerver.views.reactions import add_reaction, remove_reaction
+from zerver.views.evaluation import add_evaluation
 from zerver.views.read_receipts import read_receipts
 from zerver.views.realm import (
     check_subdomain_available,
@@ -111,6 +120,7 @@ from zerver.views.realm import (
     realm_reactivation,
     update_realm,
     update_realm_user_settings_defaults,
+    sync_realm_and_users
 )
 from zerver.views.realm_domains import (
     create_realm_domain,
@@ -134,6 +144,7 @@ from zerver.views.registration import (
     accounts_home,
     accounts_home_from_multiuse_invite,
     accounts_register,
+    registration_external,
     create_realm,
     find_account,
     get_prereg_key_and_redirect,
@@ -173,6 +184,7 @@ from zerver.views.streams import (
     update_subscription_properties_backend,
     update_subscriptions_backend,
     update_subscriptions_property,
+    migrate_topic
 )
 from zerver.views.submessage import process_submessage
 from zerver.views.thumbnail import backend_serve_thumbnail
@@ -233,8 +245,19 @@ from zerver.views.video_calls import (
     register_zoom_user,
 )
 from zerver.views.zephyr import webathena_kerberos_login
+from zerver.views.agent import (
+    agent_setting_time,
+    agent_setting_usage,
+    ai_complete_code,
+    get_bot_api_key,
+    get_ext_user_api_key,
+)
 from zproject import dev_urls
-
+from zproject.chatbot import (
+    ai_urls,
+    assistant_urls,
+    tot_urls,
+)
 if settings.TWO_FACTOR_AUTHENTICATION_ENABLED:  # nocoverage
     from two_factor.gateways.twilio.urls import urlpatterns as tf_twilio_urls
     from two_factor.urls import urlpatterns as tf_urls
@@ -263,6 +286,8 @@ v1_api_and_json_patterns = [
     # realm-level calls
     rest_path("realm", PATCH=update_realm),
     rest_path("realm/user_settings_defaults", PATCH=update_realm_user_settings_defaults),
+    rest_path("realm/sync_realm_and_users", POST=sync_realm_and_users),
+
     path("realm/subdomain/<subdomain>", check_subdomain_available),
     # realm/domains -> zerver.views.realm_domains
     rest_path("realm/domains", GET=list_realm_domains, POST=create_realm_domain),
@@ -346,6 +371,7 @@ v1_api_and_json_patterns = [
         GET=(get_messages_backend, {"allow_anonymous_user_web"}),
         POST=(send_message_backend, {"allow_incoming_webhooks"}),
     ),
+    rest_path("messages/get_chatbot_context", GET=get_chatbot_context),
     rest_path(
         "messages/<int:message_id>",
         GET=(json_fetch_raw_message, {"allow_anonymous_user_web"}),
@@ -357,6 +383,7 @@ v1_api_and_json_patterns = [
     rest_path("messages/flags/narrow", POST=update_message_flags_for_narrow),
     rest_path("messages/<int:message_id>/history", GET=get_message_edit_history),
     rest_path("messages/matches_narrow", GET=messages_in_narrow_backend),
+    rest_path("messages/direct_message", GET=get_list_user_direct_message),
     rest_path("users/me/subscriptions/properties", POST=update_subscription_properties_backend),
     rest_path("users/me/subscriptions/<int:stream_id>", PATCH=update_subscriptions_property),
     rest_path("submessage", POST=process_submessage),
@@ -365,6 +392,7 @@ v1_api_and_json_patterns = [
     # POST adds a reaction to a message
     # DELETE removes a reaction from a message
     rest_path("messages/<int:message_id>/reactions", POST=add_reaction, DELETE=remove_reaction),
+    rest_path("messages/<int:message_id>/evaluation", POST=add_evaluation),
     # read_receipts -> zerver.views.read_receipts
     rest_path("messages/<int:message_id>/read_receipts", GET=read_receipts),
     # attachments -> zerver.views.attachments
@@ -474,6 +502,7 @@ v1_api_and_json_patterns = [
         PATCH=update_stream_backend,
         DELETE=deactivate_stream_backend,
     ),
+    rest_path("streams/migrate_topic/<int:stream_id>", POST=migrate_topic),
     rest_path("streams/<int:stream_id>/email_address", GET=get_stream_email_address),
     # Delete topic in stream
     rest_path("streams/<int:stream_id>/delete_topic", POST=delete_in_topic),
@@ -504,6 +533,8 @@ v1_api_and_json_patterns = [
     rest_path("users/me/muted_users/<int:muted_user_id>", POST=mute_user, DELETE=unmute_user),
     # used to register for an event queue in tornado
     rest_path("register", POST=(events_register_backend, {"allow_anonymous_user_web"})),
+    path("accounts/register/external/", registration_external, name="registration_external"),
+
     # events -> zerver.tornado.views
     rest_path("events", GET=get_events, DELETE=cleanup_event_queue),
     # Used to generate a Zoom video call URL
@@ -513,6 +544,16 @@ v1_api_and_json_patterns = [
     # export/realm -> zerver.views.realm_export
     rest_path("export/realm", POST=export_realm, GET=get_realm_exports),
     rest_path("export/realm/<int:export_id>", DELETE=delete_realm_export),
+
+    rest_path("agent/setting/time", POST=agent_setting_time),
+    rest_path("agent/setting/usage", POST=agent_setting_usage),
+
+    rest_path("ai/complete-code", POST=ai_complete_code),
+    rest_path("bot/get-bot-api-key", POST=get_bot_api_key),
+    rest_path("ext/get-user-api-key", POST=(get_ext_user_api_key, {'allow_anonymous_api'})),
+    *ai_urls,
+    *tot_urls,
+    *assistant_urls,
 ]
 
 integrations_view = IntegrationView.as_view()
@@ -536,6 +577,7 @@ i18n_urls = [
     path("accounts/login/start/sso/", start_remote_user_sso, name="start-login-sso"),
     path("accounts/login/sso/", remote_user_sso, name="login-sso"),
     path("accounts/login/jwt/", remote_user_jwt),
+    path("accounts/login/jwt_get/", remote_user_api_key),
     path("accounts/login/social/<backend>", start_social_login, name="login-social"),
     path("accounts/login/social/<backend>/<extra_arg>", start_social_login, name="login-social"),
     path("accounts/register/social/<backend>", start_social_signup, name="signup-social"),
@@ -759,7 +801,6 @@ urls += [path("saml/metadata.xml", saml_sp_metadata)]
 
 # SCIM2
 
-from django_scim import views as scim_views
 
 urls += [
     # Everything below here are features that we don't yet support and we want

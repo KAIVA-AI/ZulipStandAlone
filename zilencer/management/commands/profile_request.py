@@ -30,6 +30,7 @@ def profile_request(request: HttpRequest, num_before: int, num_after: int) -> Ht
             num_before=num_before,
             num_after=num_after,
             apply_markdown=True,
+            sender_apply_raw_content=[]
         )
 
     prof = cProfile.Profile()

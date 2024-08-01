@@ -27,6 +27,7 @@ from zerver.models.messages import ArchiveTransaction as ArchiveTransaction
 from zerver.models.messages import Attachment as Attachment
 from zerver.models.messages import ImageAttachment as ImageAttachment
 from zerver.models.messages import Message as Message
+from zerver.models.messages import MessageLanguage as MessageLanguage
 from zerver.models.messages import OnboardingUserMessage as OnboardingUserMessage
 from zerver.models.messages import Reaction as Reaction
 from zerver.models.messages import SubMessage as SubMessage
@@ -68,3 +69,23 @@ from zerver.models.user_topics import UserTopic as UserTopic
 from zerver.models.users import RealmUserDefault as RealmUserDefault
 from zerver.models.users import UserBaseSettings as UserBaseSettings
 from zerver.models.users import UserProfile as UserProfile
+
+
+from zerver.models.system_setting import SystemSetting as SystemSetting
+from zerver.models.system_setting import SystemSettingKey as SystemSettingKey
+
+from zerver.models.chatbot import (
+    AgentChatHistory as AgentChatHistory,
+
+    AgentChatTopic as AgentChatTopic,
+    AgentChatTopicSub as AgentChatTopicSub,
+    AgentChatTopicChatHistory as AgentChatTopicChatHistory,
+
+    AssistantJob as AssistantJob,
+    AssistantJobInput as AssistantJobInput,
+    AssistantJobOutput as AssistantJobOutput,
+    AssistantJobChatHistory as AssistantJobChatHistory,
+)
+
+from zerver.models.evaluation import Evaluation as Evaluation
+from zerver.models.evaluation import EvaluationAssistantJob as EvaluationAssistantJob

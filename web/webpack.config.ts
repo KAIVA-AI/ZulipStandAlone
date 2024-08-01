@@ -235,6 +235,9 @@ const config = (
                     modules: false,
                 },
             },
+            allowedHosts: [
+                '.collab.vietis.com.vn',
+            ],
             headers: {
                 "Access-Control-Allow-Origin": "*",
                 "Timing-Allow-Origin": "*",

@@ -2,7 +2,7 @@ import re
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, TypedDict
+from typing import Any, TypedDict, Sequence
 
 from django.conf import settings
 from django.db import connection
@@ -32,7 +32,7 @@ from zerver.lib.topic import MESSAGE__TOPIC, TOPIC_NAME, messages_for_topic
 from zerver.lib.types import UserDisplayRecipient
 from zerver.lib.user_groups import is_user_in_group
 from zerver.lib.user_topics import build_get_topic_visibility_policy, get_topic_visibility_policy
-from zerver.lib.users import get_inaccessible_user_ids
+from zerver.lib.users import get_inaccessible_user_ids, get_realm_bot_profile
 from zerver.models import (
     Message,
     NamedUserGroup,
@@ -43,12 +43,14 @@ from zerver.models import (
     UserMessage,
     UserProfile,
     UserTopic,
+    MessageLanguage
 )
 from zerver.models.constants import MAX_TOPIC_NAME_LENGTH
 from zerver.models.groups import SystemGroups
 from zerver.models.messages import get_usermessage_by_message_id
 from zerver.models.realms import WildcardMentionPolicyEnum
 from zerver.models.users import is_cross_realm_bot_email
+from zerver.tasks.message_tasks import translate_message
 
 
 class MessageDetailsDict(TypedDict, total=False):
@@ -113,6 +115,7 @@ class UnreadMessagesResult(TypedDict):
 @dataclass
 class SendMessageRequest:
     message: Message
+    context_messages: list[str]
     rendering_result: MessageRenderingResult
     stream: Stream | None
     sender_muted_stream: bool | None
@@ -209,6 +212,8 @@ def messages_for_ids(
     allow_edit_history: bool,
     user_profile: UserProfile | None,
     realm: Realm,
+    sender_apply_raw_content: Sequence[str] | None = None,
+    language: str | None = None,
 ) -> list[dict[str, Any]]:
     id_fetcher = lambda row: row["id"]
 
@@ -229,6 +234,7 @@ def messages_for_ids(
 
     for message_id in message_ids:
         msg_dict = message_dicts[message_id]
+        msg_dict.update(translate_successfully=False)
         flags = user_message_flags[message_id]
         # TODO/compatibility: The `wildcard_mentioned` flag was deprecated in favor of
         # the `stream_wildcard_mentioned` and `topic_wildcard_mentioned` flags.  The
@@ -247,9 +253,20 @@ def messages_for_ids(
         msg_dict["can_access_sender"] = msg_dict["sender_id"] not in inaccessible_sender_ids
         message_list.append(msg_dict)
 
-    MessageDict.post_process_dicts(message_list, apply_markdown, client_gravatar, realm)
+    MessageDict.post_process_dicts(message_list, apply_markdown, client_gravatar, realm, sender_apply_raw_content, language)
 
     return message_list
+
+def get_msg_language(msg_id, language):
+    return MessageLanguage.objects.filter(message_id=msg_id, language=language)
+
+def translate_msg_with_auto_mode(language, msg_ids):
+    msg_languages = MessageLanguage.objects.filter(message_id__in=msg_ids, language=language).values("id")
+    existing_msg_languages = [msg.get("id") for msg in msg_languages]
+    translate_msg = list(set(msg_ids) - set(existing_msg_languages))
+    msgs = Message.objects.filter(id__in=translate_msg).values("id","content","realm")
+    for msg in msgs:
+        translate_message.delay(message=msg, language=language)
 
 
 def access_message(
@@ -562,9 +579,14 @@ def get_starred_message_ids(user_profile: UserProfile) -> list[int]:
         .values_list("message_id", flat=True)[0:10000]
     )
 
+def get_messages_bots_sent_to_user(user_profile: UserProfile, bots: UserProfile):
+    user_recipient = Recipient.objects.get(type=1, type_id=user_profile.id)
+    message_bot_to_user = Message.objects.filter(recipient=user_recipient, sender__in=bots)
+    message_bot = UserMessage.objects.filter(message__in=message_bot_to_user)
+    return [message.id for message in message_bot]
 
 def get_raw_unread_data(
-    user_profile: UserProfile, message_ids: list[int] | None = None
+    user_profile: UserProfile, message_ids: list[int] | None = None, exclude_bot: bool = False
 ) -> RawUnreadMessagesResult:
     excluded_recipient_ids = get_inactive_recipient_ids(user_profile)
     first_visible_message_id = get_first_visible_message_id(user_profile.realm)
@@ -587,7 +609,10 @@ def get_raw_unread_data(
         )
         .order_by("-message_id")
     )
-
+    if exclude_bot:
+        default_bot = get_realm_bot_profile(realm=Realm.objects.filter(id=1).first(), type=1)
+        bot_message = get_messages_bots_sent_to_user(user_profile=user_profile, bots=default_bot)
+        user_msgs = user_msgs.exclude(id__in=bot_message)
     if message_ids is not None:
         # When users are marking just a few messages as unread, we just need
         # those ids, and we know they're unread.
@@ -1426,3 +1451,72 @@ def set_visibility_policy_possible(user_profile: UserProfile, message: Message) 
 def remove_single_newlines(content: str) -> str:
     content = content.strip("\n")
     return re.sub(r"(?<!\n)\n(?!\n|[-*] |[0-9]+\. )", " ", content)
+
+def get_n_latest_messages_sent_to_bot(
+    number_of_latest_messages: int,
+    topic_name: str,
+    stream_id: int,
+    bot_name: str
+) -> Any:
+    query = SQL(
+        """
+    select
+        zm."content"
+    from
+        zerver_stream zs
+    inner join zerver_message zm on
+        zs.recipient_id = zm.recipient_id
+    where
+        (zs.id = %(stream_id)s
+        and starts_with(zm."content",%(bot_name_hashtag)s)
+        and zm.subject = %(topic_name)s)
+        or (zm.sender_id = (select zu.id from zerver_userprofile zu where zu.full_name = %(bot_name)s))
+    order by
+        zm.date_sent desc
+    limit %(number_of_latest_messages)s;
+        """
+    )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            query,
+            {
+                "number_of_latest_messages": number_of_latest_messages,
+                "stream_id": stream_id,
+                "topic_name": topic_name,
+                "bot_name_hashtag": '@**{}**'.format(bot_name),
+                "bot_name": bot_name
+            },
+        )
+        rows = cursor.fetchall()
+    rows = [item[0] for item in rows]
+    return rows
+
+
+def get_receiver_in_group_direct_message_by_user_profile(user_profile_id) -> Any:
+    query = SQL(
+        """
+    select
+        recipient_id
+    from zerver_subscription zs
+    join zerver_recipient zr on
+        zs.recipient_id = zr.id
+    where
+        (user_profile_id = %(user_profile_id)s and
+        zr.type = 3);
+        """
+    )
+    # type
+    # 1: private message
+    # 2: set user in stream
+    # 3: set user in group subscription huddle
+    with connection.cursor() as cursor:
+        cursor.execute(
+            query,
+            {
+                "user_profile_id": user_profile_id,
+            },
+        )
+        columns = [ column.name for column in cursor.description]
+        rows = [dict(zip(columns, row))
+                for row in cursor.fetchall()]
+    return rows

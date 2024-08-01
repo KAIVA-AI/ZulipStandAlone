@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Literal
+from typing import Literal, Sequence
 
 import orjson
 from django.contrib.auth.models import AnonymousUser
@@ -127,6 +127,7 @@ def update_message_backend(
     send_notification_to_old_thread: Json[bool] = False,
     send_notification_to_new_thread: Json[bool] = True,
     content: str | None = None,
+    language: str | None = None
 ) -> HttpResponse:
     number_changed = check_update_message(
         user_profile,
@@ -137,6 +138,7 @@ def update_message_backend(
         send_notification_to_old_thread,
         send_notification_to_new_thread,
         content,
+        language
     )
 
     # Include the number of messages changed in the logs
@@ -196,6 +198,8 @@ def json_fetch_raw_message(
     *,
     message_id: PathOnly[NonNegativeInt],
     apply_markdown: Json[bool] = True,
+    sender_apply_raw_content: Sequence[str] | None = [],
+    language: str | None = None
 ) -> HttpResponse:
     if not maybe_user_profile.is_authenticated:
         realm = get_valid_realm_from_request(request)
@@ -227,6 +231,8 @@ def json_fetch_raw_message(
         allow_edit_history=allow_edit_history,
         user_profile=user_profile,
         realm=message.realm,
+        sender_apply_raw_content=sender_apply_raw_content,
+        language=language
     )
     response = dict(
         message=message_dict_list[0],

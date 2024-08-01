@@ -871,3 +871,12 @@ def do_send_realm_deactivation_email(realm: Realm, acting_user: UserProfile | No
             context=context,
             realm=realm,
         )
+
+def update_realm_description_by_id(realm_id, new_description):
+    try:
+        realm_instance = Realm.objects.get(id=realm_id)
+        realm_instance.description = new_description
+        realm_instance.save()
+        return True
+    except Realm.DoesNotExist:
+        return False

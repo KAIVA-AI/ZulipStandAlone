@@ -20,6 +20,7 @@ from django.utils.translation import get_language
 from django.views.defaults import server_error
 from django_auth_ldap.backend import LDAPBackend, _LDAPUser
 from pydantic import Json, NonNegativeInt, StringConstraints
+from django.views.decorators.csrf import csrf_exempt
 
 from confirmation.models import (
     Confirmation,
@@ -117,6 +118,10 @@ from zproject.backends import (
     ldap_auth_enabled,
     password_auth_enabled,
 )
+from zerver.lib.cache import realm_user_dict_fields
+from zerver.lib.response import json_success
+from zerver.lib.request import REQ, has_request_variables
+import string, random
 
 if settings.BILLING_ENABLED:
     from corporate.lib.registration import check_spare_licenses_available_for_registering_new_user
@@ -225,6 +230,52 @@ def realm_register(*args: Any, **kwargs: Any) -> HttpResponse:
 @require_post
 def accounts_register(*args: Any, **kwargs: Any) -> HttpResponse:
     return registration_helper(*args, **kwargs)
+
+@csrf_exempt
+@has_request_variables
+def registration_external(
+    request: HttpRequest,
+    full_name: str = REQ(default=""),
+    email: str = REQ(default=""),
+) -> HttpResponse:
+    realm = get_realm_from_request(request)
+    if realm is None:
+        return json_success(request, data={"messages": "invalid subdomain from request %s" % (request.get_host())})
+    try:
+        validators.validate_email(email)
+    except ValidationError as e:
+        return json_success(request, data={"messages": str(e.message)})
+    postdata = dict(request.POST.copy())
+    postdata['realm_name'] = realm.name
+    postdata['password'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    postdata['realm_type'] = realm.org_type
+    postdata['terms'] = True
+    try:
+        form = RegistrationForm(postdata, realm_creation=7)
+        if not form.is_valid():
+            return json_success(request, data={"messages": "Form register invalid"})
+    except Exception as e:
+        return json_success(request, data={"messages": e})
+    user = list(
+    UserProfile.objects.filter(
+        realm_id=realm.id,
+        delivery_email=email,
+        is_bot=False,
+    ).values(*realm_user_dict_fields)
+    )
+    if user:
+        return json_success(request, data={"messages": "user already existed"})
+    user_profile = do_create_user(
+        email=email,
+        password=postdata['password'],
+        realm=realm,
+        full_name=full_name,
+        role=UserProfile.ROLE_MEMBER,
+        tos_version=settings.TERMS_OF_SERVICE_VERSION,
+        acting_user=None,
+    )
+
+    return json_success(request)
 
 
 @typed_endpoint

@@ -52,10 +52,10 @@ from zerver.lib.timestamp import datetime_to_timestamp, timestamp_to_datetime
 from zerver.lib.users import is_2fa_verified
 from zerver.lib.utils import has_api_key_format
 from zerver.lib.webhooks.common import notify_bot_owner_about_invalid_json
-from zerver.models import UserProfile
 from zerver.models.clients import get_client
 from zerver.models.users import get_user_profile_by_api_key
-
+from zerver.models import Realm, UserProfile
+import jwt
 if TYPE_CHECKING:
     from django.http.request import _ImmutableQueryDict
 
@@ -712,9 +712,23 @@ def get_basic_credentials(
         # the email and API key
         auth_type, credentials = request.headers["Authorization"].split()
         # case insensitive per RFC 1945
-        if auth_type.lower() != "basic":
+        if auth_type.lower() == "bearer":
+            domain = get_subdomain(request)
+            realm = Realm.objects.filter(string_id=domain).first()
+            key = settings.JWT_AUTH_KEYS['vcollab']["key"]
+            algorithms = settings.JWT_AUTH_KEYS['vcollab']["algorithms"]
+            options = {"verify_signature": True}
+            payload = jwt.decode(credentials, key, algorithms=algorithms, options=options)
+            email = payload.get("email", None)
+            user = UserProfile.objects.filter(realm=realm, delivery_email=email).first()
+            if user is None:
+                raise UnauthorizedError(_("Invalid authorization header for basic auth"))
+            role = email
+            api_key = user.api_key
+        elif auth_type.lower() == "basic":
+            role, api_key = base64.b64decode(credentials).decode().split(":")
+        else:
             raise JsonableError(_("This endpoint requires HTTP basic authentication."))
-        role, api_key = base64.b64decode(credentials).decode().split(":")
         if beanstalk_email_decode:
             # Beanstalk's web hook UI rejects URL with a @ in the username section
             # So we ask the user to replace them with %40

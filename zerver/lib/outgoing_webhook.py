@@ -62,6 +62,7 @@ class GenericOutgoingWebhookService(OutgoingWebhookServiceInterface):
             apply_markdown=False,
             client_gravatar=False,
             keep_rendered_content=True,
+            sender_apply_raw_content=[]
         )
 
         request_data = {

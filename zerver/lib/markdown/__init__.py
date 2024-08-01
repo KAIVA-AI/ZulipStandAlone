@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from re import Match, Pattern
 from typing import Any, Generic, Optional, TypeAlias, TypedDict, TypeVar, cast
-from urllib.parse import parse_qs, quote, urljoin, urlsplit, urlunsplit
+from urllib.parse import parse_qs, quote, urljoin, urlsplit, urlunsplit, urlencode
 from xml.etree.ElementTree import Element, SubElement
 
 import ahocorasick
@@ -65,7 +65,7 @@ from zerver.lib.timezone import common_timezones
 from zerver.lib.types import LinkifierDict
 from zerver.lib.url_encoding import encode_stream, hash_util_encode
 from zerver.lib.url_preview.types import UrlEmbedData, UrlOEmbedData
-from zerver.models import Message, Realm
+from zerver.models import Message, Realm, MessageLanguage
 from zerver.models.linkifiers import linkifiers_for_realm
 from zerver.models.realm_emoji import EmojiInfo, get_name_keyed_dict_for_active_realm_emoji
 
@@ -634,7 +634,14 @@ class InlineInterestingLinkProcessor(markdown.treeprocessors.Treeprocessor):
             # tag, and may re-write it into the thumbnail URL if it
             # already exists when the message is sent.
             img.set("class", "image-loading-placeholder")
-            img.set("src", "/static/images/loading/loader-black.svg")
+            # img.set("src", "/static/images/loading/loader-black.svg")
+            img.set("src", f"{settings.EXTERNAL_URI_SCHEME}{settings.EXTERNAL_HOST}/thumbnail?" + urlencode(
+                {"url": image_url, "size": "thumbnail"}))
+            img.set(
+                "data-src-fullsize",
+                f"{settings.EXTERNAL_URI_SCHEME}{settings.EXTERNAL_HOST}/thumbnail?" + urlencode(
+                    {"url": image_url, "size": "full"})
+            )
         else:
             img.set("src", image_url)
 
@@ -2715,6 +2722,133 @@ def do_convert(
         _md_engine.zulip_realm = None
         _md_engine.zulip_db_data = None
 
+def do_convert_msg_language(
+    content: str,
+    message: Optional[MessageLanguage] = None,
+    message_realm: Optional[Realm] = None,
+    mention_data: Optional[MentionData] = None
+) -> MessageRenderingResult:
+    """Convert Markdown to HTML, with Zulip-specific settings and hacks."""
+    # This logic is a bit convoluted, but the overall goal is to support a range of use cases:
+    # * Nothing is passed in other than content -> just run default options (e.g. for docs)
+    # * message is passed, but no realm is -> look up realm from message
+    # * message_realm is passed -> use that realm for Markdown purposes
+    if message is not None and message_realm is None:
+        message_realm = message.get_realm()
+    if message_realm is None:
+        linkifiers_key = DEFAULT_MARKDOWN_KEY
+    else:
+        linkifiers_key = message_realm.id
+
+    if message and hasattr(message, "id") and message.id:
+        logging_message_id = "id# " + str(message.id)
+    else:
+        logging_message_id = "unknown"
+
+    if (
+        message is not None
+        and message_realm is not None
+        and message_realm.is_zephyr_mirror_realm
+        and message.sending_client.name == "zephyr_mirror"
+    ):
+        # Use slightly customized Markdown processor for content
+        # delivered via zephyr_mirror
+        linkifiers_key = ZEPHYR_MIRROR_MARKDOWN_KEY
+
+    maybe_update_markdown_engines(linkifiers_key, False)
+    md_engine_key = (linkifiers_key, False)
+    _md_engine = md_engines[md_engine_key]
+    # Reset the parser; otherwise it will get slower over time.
+    _md_engine.reset()
+
+    # Filters such as UserMentionPattern need a message.
+    rendering_result: MessageRenderingResult = MessageRenderingResult(
+        rendered_content="",
+        mentions_wildcard=False,
+        mentions_user_ids=set(),
+        mentions_user_group_ids=set(),
+        alert_words=set(),
+        links_for_preview=set(),
+        user_ids_with_alert_words=set(),
+        potential_attachment_path_ids=[],
+    )
+
+    _md_engine.zulip_message = message
+    _md_engine.zulip_rendering_result = rendering_result
+    _md_engine.zulip_realm = message_realm
+    _md_engine.zulip_db_data = None  # for now
+    _md_engine.image_preview_enabled = image_preview_enabled(message, message_realm)
+    _md_engine.url_embed_preview_enabled = url_embed_preview_enabled(
+        message, message_realm
+    )
+    _md_engine.url_embed_data = None
+
+    # Pre-fetch data from the DB that is used in the Markdown thread
+    if message_realm is not None:
+        # Here we fetch the data structures needed to render
+        # mentions/stream mentions from the database, but only
+        # if there is syntax in the message that might use them, since
+        # the fetches are somewhat expensive and these types of syntax
+        # are uncommon enough that it's a useful optimization.
+
+        if mention_data is None:
+            mention_backend = MentionBackend(message_realm.id)
+            mention_data = MentionData(mention_backend, content)
+
+        stream_names = possible_linked_stream_names(content)
+        stream_name_info = mention_data.get_stream_name_map(stream_names)
+
+        if content_has_emoji_syntax(content):
+            active_realm_emoji = message_realm.get_active_emoji()
+        else:
+            active_realm_emoji = {}
+
+        _md_engine.zulip_db_data = DbData(
+            realm_alert_words_automaton=None,
+            mention_data=mention_data,
+            active_realm_emoji=active_realm_emoji,
+            realm_uri=message_realm.uri,
+            sent_by_bot=False,
+            stream_names=stream_name_info,
+            translate_emoticons=translate_emoticons,
+        )
+
+    try:
+        # Spend at most 5 seconds rendering; this protects the backend
+        # from being overloaded by bugs (e.g. Markdown logic that is
+        # extremely inefficient in corner cases) as well as user
+        # errors (e.g. a linkifier that makes some syntax
+        # infinite-loop).
+        rendering_result.rendered_content = timeout(5, lambda: _md_engine.convert(content))
+
+        # Throw an exception if the content is huge; this protects the
+        # rest of the codebase from any bugs where we end up rendering
+        # something huge.
+        MAX_MESSAGE_LENGTH = settings.MAX_MESSAGE_LENGTH
+        if len(rendering_result.rendered_content) > MAX_MESSAGE_LENGTH * 100:
+            raise MarkdownRenderingError(
+                f"Rendered content exceeds {MAX_MESSAGE_LENGTH * 100} characters (message {logging_message_id})"
+            )
+        return rendering_result
+    except Exception:
+        cleaned = privacy_clean_markdown(content)
+        # NOTE: Don't change this message without also changing the
+        # logic in logging_handlers.py or we can create recursive
+        # exceptions.
+        markdown_logger.exception(
+            "Exception in Markdown parser; input (sanitized) was: %s\n (message %s)",
+            cleaned,
+            logging_message_id,
+        )
+
+        raise MarkdownRenderingError
+    finally:
+        # These next three lines are slightly paranoid, since
+        # we always set these right before actually using the
+        # engine, but better safe then sorry.
+        _md_engine.zulip_message = None
+        _md_engine.zulip_realm = None
+        _md_engine.zulip_db_data = None
 
 markdown_time_start = 0.0
 markdown_total_time = 0.0

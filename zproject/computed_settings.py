@@ -203,7 +203,7 @@ MANAGERS = ADMINS
 # https://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # although not all choices may be available on all operating systems.
 # In a Windows environment this must be set to your system time zone.
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Ho_Chi_Minh"
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
@@ -217,7 +217,7 @@ USE_I18N = True
 DEVELOPMENT_LOG_DIRECTORY = os.path.join(DEPLOY_ROOT, "var", "log")
 
 # Extend ALLOWED_HOSTS with localhost (needed to RPC to Tornado),
-ALLOWED_HOSTS += ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS += ["127.0.0.1", "localhost","http://localhost:8080"]
 # ... with hosts corresponding to EXTERNAL_HOST,
 ALLOWED_HOSTS += [EXTERNAL_HOST_WITHOUT_PORT, "." + EXTERNAL_HOST_WITHOUT_PORT]
 # ... and with the hosts in REALM_HOSTS.
@@ -242,9 +242,39 @@ MIDDLEWARE = [
     "zerver.middleware.DetectProxyMisconfiguration",
     "django.middleware.csrf.CsrfViewMiddleware",
     # Make sure 2FA middlewares come after authentication middleware.
-    "django_otp.middleware.OTPMiddleware",  # Required by two factor auth.
+    # "django_otp.middleware.OTPMiddleware",  # Required by two factor auth.
     "two_factor.middleware.threadlocals.ThreadLocals",  # Required by Twilio
+    # Needs to be after CommonMiddleware, which sets Content-Length
+    "zerver.middleware.FinalizeOpenGraphDescription",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "https://dev.kollabridge.com",
+    "https://beta.kollabridge.com",
+]
+
+CORS_ALLOW_METHODS = (
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+)
+
+CORS_ALLOW_HEADERS = (
+    "Accept",
+    "Authorization",
+    "Content-Type",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+)
 
 AUTH_USER_MODEL = "zerver.UserProfile"
 
@@ -272,6 +302,8 @@ INSTALLED_APPS = [
     "django_otp.plugins.otp_totp",
     "two_factor",
     "two_factor.plugins.phonenumber",
+    "corsheaders",
+    "django_celery_beat"
 ]
 if USING_PGROONGA:
     INSTALLED_APPS += ["pgroonga"]
@@ -477,8 +509,16 @@ if PRODUCTION:
 # Prevent JavaScript from reading the CSRF token from cookies.  Our code gets
 # the token from the DOM, which means malicious code could too.  But hiding the
 # cookie will slow down some attackers.
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
 CSRF_FAILURE_VIEW = "zerver.middleware.csrf_failure"
+X_FRAME_OPTIONS = 'ALLOW-FROM localhost:8080'
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8080',
+    'https://*.collab.vietis.com.vn:9991',
+    'https://*.chat-beta.kollabridge.com',
+    'https://*.chat-dev.kollabridge.com',
+]
+CSRF_COOKIE_SAMESITE = None
 
 # Avoid a deprecation message in the Firefox console
 LANGUAGE_COOKIE_SAMESITE: Final = "Lax"
@@ -1264,3 +1304,34 @@ SCIM_SERVICE_PROVIDER = {
         },
     ],
 }
+
+
+# Celery Configuration
+CELERY_TIMEZONE = TIME_ZONE
+
+LANGUAGE_COUNTRY = (('Catalan', 'Spain'), ('Slovenian', 'Slovenia'), ('Maltese', 'Malta'),
+                        ('Lithuanian', 'Lithuania'), ('Dogri', 'India'), ('Haryanvi', 'India'), ('Marwari', 'India'),
+                        ('Slovak', 'Slovakia'), ('Welsh', 'Wales'), ('Mongolian', 'Mongolia'), ('Awadhi', 'India'),
+                        ('Romanian', 'Romania'), ('MandarinChinese', 'China'), ('Cantonese(Yue)', 'China'),
+                        ('Irish', 'Ireland'), ('Moldovan', 'Moldova'), ('Czech', 'CzechRepublic'),
+                        ('Gujarati', 'India'), ('', ''), ('Japanese', 'Japan'), ('Punjabi', 'India'),
+                        ('Vietnamese', 'Vietnam'), ('Kashmiri', 'India'), ('Faroese', 'FaroeIslands'),
+                        ('Danish', 'Denmark'), ('Azerbaijani', 'Azerbaijan'), ('Portuguese', 'Portugal'),
+                        ('Mandarin', 'China'), ('Kyrgyz', 'Kyrgyzstan'), ('Marathi', 'India'), ('Uzbek', 'Uzbekistan'),
+                        ('Norwegian', 'Norway'), ('Bosnian', 'BosniaandHerzegovina'), ('Latvian', 'Latvia'),
+                        ('Greek', 'Greece'), ('Oriya', 'India'), ('Galician', 'Spain'), ('Indonesian', 'Indonesia'),
+                        ('Dutch', 'Netherlands'), ('Croatian', 'Croatia'), ('Chinese', 'China'),
+                        ('Korean', 'SouthKorea'), ('Kannada', 'India'), ('Bhojpuri', 'India'), ('Konkani', 'India'),
+                        ('Armenian', 'Armenia'), ('Sinhala', 'SriLanka'), ('Bashkir', 'Russia'),
+                        ('Hungarian', 'Hungary'), ('Nepali', 'Nepal'), ('Kazakh', 'Kazakhstan'),
+                        ('Albanian', 'Albania'), ('Slovene', 'Slovenia'), ('French', 'France'), ('German', 'Germany'),
+                        ('Pashto', 'Afghanistan'), ('Ukrainian', 'Ukraine'), ('Malay', 'Malaysia'),
+                        ('Rajasthani', 'India'), ('Hindi', 'India'), ('Russian', 'Russia'), ('Serbian', 'Serbia'),
+                        ('Georgian', 'Georgia'), ('Persian(Farsi)', 'Iran'), ('Macedonian', 'NorthMacedonia'),
+                        ('Wu', 'China'), ('Polish', 'Poland'), ('Bengali', 'Bangladesh'),
+                        ('BrazilianPortuguese', 'Brazil'), ('Arabic', 'ArabWorld'), ('Montenegrin', 'Montenegro'),
+                        ('Santali', 'India'), ('MinNan', 'China'), ('Basque', 'Spain'), ('Bulgarian', 'Bulgaria'),
+                        ('English', 'UnitedKingdom'), ('Finnish', 'Finland'), ('Maithili', 'India'),
+                        ('Urdu', 'Pakistan'), ('Estonian', 'Estonia'), ('Chhattisgarhi', 'India'), ('Italian', 'Italy'),
+                        ('Sindhi', 'Pakistan'), ('Belarusian', 'Belarus'), ('Sanskrit', 'India'),
+                        ('Javanese', 'Indonesia'))

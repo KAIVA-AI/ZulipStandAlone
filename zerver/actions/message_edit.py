@@ -84,6 +84,8 @@ from zerver.models import (
 from zerver.models.streams import get_stream_by_id_in_realm
 from zerver.models.users import get_system_bot
 from zerver.tornado.django_api import send_event_on_commit
+from zerver.tasks.message_tasks import translate_message
+from django.forms.models import model_to_dict
 
 
 def subscriber_info(user_id: int) -> dict[str, Any]:
@@ -433,6 +435,7 @@ def do_update_message(
     send_notification_to_old_thread: bool,
     send_notification_to_new_thread: bool,
     content: str | None,
+    language: str | None,
     rendering_result: MessageRenderingResult | None,
     prior_mention_user_ids: set[int],
     mention_data: MentionData | None = None,
@@ -788,6 +791,8 @@ def do_update_message(
 
     # This does message.save(update_fields=[...])
     save_message_for_edit_use_case(message=target_message)
+    if language:
+        translate_message.delay(message=model_to_dict(target_message), language=language)
 
     # This updates any later messages, if any.  It returns the
     # freshly-fetched-from-the-database changed messages.
@@ -1245,6 +1250,7 @@ def check_update_message(
     send_notification_to_old_thread: bool = True,
     send_notification_to_new_thread: bool = True,
     content: str | None = None,
+    language: str | None = None,
 ) -> int:
     """This will update a message given the message id and user profile.
     It checks whether the user profile has the permission to edit the message
@@ -1379,6 +1385,7 @@ def check_update_message(
         send_notification_to_old_thread,
         send_notification_to_new_thread,
         content,
+        language,
         rendering_result,
         prior_mention_user_ids,
         mention_data,
