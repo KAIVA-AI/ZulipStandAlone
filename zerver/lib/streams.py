@@ -883,6 +883,8 @@ def stream_to_dict(stream: Stream, recent_traffic: dict[int, int] | None = None)
         stream_post_policy=stream.stream_post_policy,
         is_announcement_only=stream.stream_post_policy == Stream.STREAM_POST_POLICY_ADMINS,
         stream_weekly_traffic=stream_weekly_traffic,
+        recipient_id=stream.recipient_id,
+        external_stream_type=stream.external_stream_type,
     )
 
 
@@ -952,14 +954,6 @@ def get_streams_for_user(
         else:
             # Don't bother going to the database with no valid sources
             return []
-    for stream in streams:
-        topics = get_topic_history_for_stream(user_profile=user_profile,
-                                              recipient_id=stream.recipient_id,
-                                              public_history=stream.history_public_to_subscribers)
-        stream.topics = topics
-        bot_default_stream = UserProfile.objects.filter(is_bot=True, default_sending_stream=stream.id).first()
-        if bot_default_stream:
-            stream.mention_bot_default = bot_default_stream.full_name
     return list(streams)
 
 
@@ -989,10 +983,17 @@ def do_get_streams(
     stream_dicts = sorted(
         (stream_to_dict(stream, recent_traffic) for stream in streams), key=lambda elt: elt["name"]
     )
+    default_stream_ids = get_default_stream_ids_for_realm(user_profile.realm_id)
 
-    if include_default:
-        default_stream_ids = get_default_stream_ids_for_realm(user_profile.realm_id)
-        for stream in stream_dicts:
+    for stream in stream_dicts:
+        topics = get_topic_history_for_stream(user_profile=user_profile,
+                                              recipient_id=stream.get("recipient_id"),
+                                              public_history=stream.get("history_public_to_subscribers"))
+        stream["topics"] = topics
+        bot_default_stream = UserProfile.objects.filter(is_bot=True, default_sending_stream=stream["stream_id"]).first()
+        if bot_default_stream:
+            stream["mention_bot_default"] = bot_default_stream.full_name
+        if include_default:
             stream["is_default"] = stream["stream_id"] in default_stream_ids
 
     return stream_dicts
