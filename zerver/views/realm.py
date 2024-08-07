@@ -690,6 +690,7 @@ def sync_realm_and_users(request: HttpRequest,
                              json_validator=check_list(check_dict([])),
                              default=[]),
                          ) -> HttpResponse:
-    do_sync_realm_and_users(ProjectId, ProjectCode, MemberList, ProjectMetaData)
+    do_sync_realm_and_users(user_profile=user_profile, ProjectId=ProjectId, ProjectCode=ProjectCode,
+                            MemberList=MemberList, ProjectMetaData=ProjectMetaData)
     data = {"success": True}
     return json_success(request, data=data)

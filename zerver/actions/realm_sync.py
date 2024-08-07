@@ -14,8 +14,10 @@ from zerver.models import (
     Recipient,
     Stream,
     UserGroup,
-    Service
+    Service,
+    NamedUserGroup
 )
+from zerver.models.groups import SystemGroups
 from zerver.actions.realm_settings import update_realm_description_by_id
 from zerver.actions.create_user import do_create_user, do_reactivate_user
 from zerver.actions.create_realm import do_create_realm
@@ -31,7 +33,10 @@ from zerver.models.system_setting import SystemSetting
 from zerver.lib.cache import realm_user_dict_fields
 from zproject.config import get_secret
 import random, string
-
+from zerver.lib.streams import StreamDict, list_to_streams
+from collections.abc import Collection
+from zerver.actions.streams import bulk_remove_subscriptions
+from zerver.models.streams import bulk_get_streams
 class ACTION(Enum):
     CREATE = "create"
     DEACTIVATE = "deactivate"
@@ -40,7 +45,7 @@ class ACTION(Enum):
 
 
 def do_sync_realm_and_users(
-    ProjectId: str = '', ProjectCode: str = '', MemberList: Optional[List[Dict[str, Any]]] = [],
+    user_profile: UserProfile, ProjectId: str = '', ProjectCode: str = '', MemberList: Optional[List[Dict[str, Any]]] = [],
     ProjectMetaData: Optional[List[Dict[str, Any]]] = []
 ) -> None:
     mapping_role_from_v_collab = {
@@ -149,7 +154,8 @@ def do_sync_realm_and_users(
         {"realm": realm, "short_name": "kolla-a-issue", 'full_name': "Kolla-Issue", "handler": "a-issue",
                       "evaluation_default": DEFINE_EVALUATION_ISSUE}
     ]
-    initial_service_external_realm(bot_list=list_bot_initial, realm=realm)
+    print("START INITIAL SERVICE ")
+    initial_service_external_realm(bot_list=list_bot_initial, realm=realm, user_profile=user_profile)
 
     # sync_stream(realm, 'Draft TestCase')
     SystemSetting.objects.update_or_create(
@@ -222,6 +228,37 @@ def sync_bot(realm: Realm, short_name: str, full_name: str, handler: str, defaul
     bot.save()
     return bot
 
+def remove_subscription_old_stream(realm: Realm, stream_dict: Collection[StreamDict], user_profile: UserProfile):
+    stream_names = [stream.get("name") for stream in stream_dict]
+    streams = bulk_get_streams(realm=realm, stream_names=stream_names)
+    all_user = UserProfile.objects.filter(
+        realm_id=realm.id,
+        is_bot=False,
+    ).all()
+    (removed, not_subscribed) = bulk_remove_subscriptions(
+        realm=realm, users=all_user, streams=streams, acting_user=user_profile
+    )
+
+    return removed
+
+
+
+def sync_streams(realm: Realm, user_profile: UserProfile, streams_raw: Collection[StreamDict], external_stream_type: int = 1):
+    streams = []
+    # pass stream data
+    existing_stream, created_stream = list_to_streams(streams_raw=streams_raw, user_profile=user_profile, autocreate=True)
+    streams += existing_stream
+    streams += created_stream
+    all_user = UserProfile.objects.filter(
+        realm_id=user_profile.realm.id,
+        is_bot=False,
+    ).all()
+    bulk_add_subscriptions(
+        user_profile.realm, streams, all_user, acting_user=None
+    )
+
+    return
+
 
 def sync_stream(realm: Realm, stream_name: str, external_stream_type: int = 1):
     stream = Stream.objects.filter(
@@ -229,15 +266,15 @@ def sync_stream(realm: Realm, stream_name: str, external_stream_type: int = 1):
         name=stream_name,
     ).first()
     if stream is None:
-        administrators_user_group = UserGroup.objects.get(
-            name=UserGroup.ADMINISTRATORS_GROUP_NAME, realm=realm, is_system_group=True
+        can_remove_subscribers_group = NamedUserGroup.objects.get(
+            name=SystemGroups.ADMINISTRATORS, is_system_group=True, realm=realm
         )
         stream = Stream.objects.create(
             realm=realm,
             name=stream_name,
             description=stream_name,
             invite_only=False,
-            can_remove_subscribers_group=administrators_user_group,
+            can_remove_subscribers_group=can_remove_subscribers_group,
             external_stream_type=external_stream_type
         )
         recipient = Recipient.objects.create(type_id=stream.id, type=Recipient.STREAM)
@@ -319,17 +356,30 @@ def add_evaluation_bot_userprofile(user_profile: UserProfile, tags: list) -> Eva
     Evaluation.objects.bulk_create(evaluations)
     return True
 
-def initial_service_external_realm(bot_list: List, realm: Realm):
+def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: UserProfile):
     # add initial external stream
-    stream_req = sync_stream(realm, 'Requirement', external_stream_type=2)
-    stream_testcase = sync_stream(realm, 'TestCase', external_stream_type=2)
-    stream_issue = sync_stream(realm, 'Issue', external_stream_type=2)
-    initial_draft_stream_list = ['Draft Requirement','Draft TestCase','Draft Issue']
-    initial_public_stream_list = ['Private AI Chat']
-    for stream in initial_draft_stream_list:
-        sync_stream(realm, stream, external_stream_type=3)
-    for stream in initial_public_stream_list:
-        sync_stream(realm, stream, external_stream_type=1)
+    # stream_req = sync_stream(realm, 'Requirement', external_stream_type=2)
+    # stream_testcase = sync_stream(realm, 'TestCase', external_stream_type=2)
+    # stream_issue = sync_stream(realm, 'Issue', external_stream_type=2)
+    # initial_draft_stream_list = ['Draft Requirement','Draft TestCase','Draft Issue']
+    # initial_assistant_stream_list = ['Requirement','TestCase','Issue']
+    external_stream = {
+        Stream.STREAM_PUBLIC: [],
+        Stream.STREAM_ASSISTANT: ['Requirement','TestCase','Issue'],
+        Stream.STREAM_DRAFT: ['Draft Requirement','Draft TestCase','Draft Issue']
+    }
+    remove_subscription_old_stream(realm=realm, stream_dict=[{"name": "Private AI Chat"}], user_profile=user_profile)
+
+    for _type, stream_list in external_stream.items():
+        streams_as_dict: list[StreamDict] = [
+            {"name": stream_name.strip(), "is_web_public": True} for stream_name in stream_list
+        ]
+        sync_streams(realm=realm, user_profile=user_profile, streams_raw=streams_as_dict, external_stream_type=_type)
+    # initial_public_stream_list = ['Private AI Chat']
+    # for stream in initial_draft_stream_list:
+    #     sync_stream(realm, stream, external_stream_type=3)
+    # for stream in initial_public_stream_list:
+    #     sync_stream(realm, stream, external_stream_type=1)
 
     for bot in bot_list:
         tags = bot.pop('evaluation_default')
@@ -338,16 +388,16 @@ def initial_service_external_realm(bot_list: List, realm: Realm):
         if bot.full_name == "Kolla-Req":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            bot.default_sending_stream = stream_req
+            # bot.default_sending_stream = stream_req
             bot.save()
         elif bot.full_name == "Kolla-Testcase":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            bot.default_sending_stream = stream_req
+            # bot.default_sending_stream = stream_testcase
             bot.save()
         elif bot.full_name == "Kolla-Issue":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            bot.default_sending_stream = stream_req
+            # bot.default_sending_stream = stream_issue
             bot.save()
     return True
