@@ -512,6 +512,7 @@ class InlineImageProcessor(markdown.treeprocessors.Treeprocessor):
     def run(self, root: Element) -> None:
         # Get all URLs from the blob
         found_imgs = walk_tree(root, lambda e: e if e.tag == "img" else None)
+        print("INLINE IMAGE PROCESSOR")
         for img in found_imgs:
             url = img.get("src")
             assert url is not None
@@ -587,6 +588,7 @@ class InlineInterestingLinkProcessor(markdown.treeprocessors.Treeprocessor):
     def __init__(self, zmd: "ZulipMarkdown") -> None:
         super().__init__(zmd)
         self.zmd = zmd
+        # print("STARTING INLINE LINK PROCESSOR ", self)
 
     def add_a(
         self,
@@ -611,7 +613,7 @@ class InlineInterestingLinkProcessor(markdown.treeprocessors.Treeprocessor):
             root.insert(insertion_index, div)
         else:
             div = SubElement(root, "div")
-
+        print("add a")
         div.set("class", class_attr)
         a = SubElement(div, "a")
         a.set("href", link)
@@ -689,7 +691,7 @@ class InlineInterestingLinkProcessor(markdown.treeprocessors.Treeprocessor):
 
         container = SubElement(root, "div")
         container.set("class", "message_embed")
-
+        print("GET CAMO LINK")
         img_link = get_camo_url(extracted_data.image)
         img = SubElement(container, "a")
         img.set(
@@ -2633,6 +2635,7 @@ def do_convert(
         user_ids_with_alert_words=set(),
         potential_attachment_path_ids=[],
     )
+    print("rendering result format")
 
     _md_engine.zulip_message = message
     _md_engine.zulip_rendering_result = rendering_result
@@ -2887,6 +2890,7 @@ def markdown_convert(
     no_previews: bool = False,
 ) -> MessageRenderingResult:
     markdown_stats_start()
+    print("do convert")
     ret = do_convert(
         content,
         realm_alert_words_automaton,
@@ -2922,7 +2926,7 @@ def render_message_markdown(
     sender = message.sender
     sent_by_bot = sender.is_bot
     translate_emoticons = sender.translate_emoticons
-
+    print("do martdown convert")
     rendering_result = markdown_convert(
         content,
         realm_alert_words_automaton=realm_alert_words_automaton,

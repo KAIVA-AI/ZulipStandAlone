@@ -257,9 +257,6 @@ def messages_for_ids(
 
     return message_list
 
-def get_msg_language(msg_id, language):
-    return MessageLanguage.objects.filter(message_id=msg_id, language=language)
-
 def translate_msg_with_auto_mode(language, msg_ids):
     msg_languages = MessageLanguage.objects.filter(message_id__in=msg_ids, language=language).values("id")
     existing_msg_languages = [msg.get("id") for msg in msg_languages]

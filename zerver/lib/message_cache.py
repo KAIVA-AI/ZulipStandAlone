@@ -16,7 +16,7 @@ from zerver.lib.query_helpers import query_for_ids
 from zerver.lib.timestamp import datetime_to_timestamp
 from zerver.lib.topic import DB_TOPIC_NAME, TOPIC_LINKS, TOPIC_NAME
 from zerver.lib.types import DisplayRecipientT, EditHistoryEvent, UserDisplayRecipient
-from zerver.models import Message, Reaction, Realm, Recipient, Stream, SubMessage, UserProfile
+from zerver.models import Message, Reaction, Realm, Recipient, Stream, SubMessage, UserProfile, MessageLanguage
 from zerver.models.realms import get_fake_email_domain
 
 
@@ -96,6 +96,7 @@ def update_message_cache(
 
 
 def save_message_rendered_content(message: Message, content: str) -> str:
+    print("SAVE MESSAGE RENDER CONTENT ")
     rendering_result = render_message_markdown(message, content, realm=message.get_realm())
     rendered_content = None
     if rendering_result is not None:
@@ -103,6 +104,7 @@ def save_message_rendered_content(message: Message, content: str) -> str:
     message.rendered_content = rendered_content
     message.rendered_content_version = markdown_version
     message.save_rendered_content()
+    print("RESSULT render ", rendered_content)
     return rendered_content
 
 
@@ -204,6 +206,10 @@ class MessageDict:
                 sender_apply_raw_content=sender_apply_raw_content,
                 language=language
             )
+            check_message_language = get_msg_language(msg_id=obj['id'], language=language)
+            if check_message_language:
+                obj.update({"content": check_message_language.first().rendered_content})
+                obj.update({"translate_successfully": True})
 
     @staticmethod
     def finalize_payload(
@@ -577,3 +583,6 @@ class MessageDict:
             medium=False,
             client_gravatar=client_gravatar,
         )
+
+def get_msg_language(msg_id, language):
+    return MessageLanguage.objects.filter(message_id=msg_id, language=language)
