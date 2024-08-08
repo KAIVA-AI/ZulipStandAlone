@@ -2,7 +2,7 @@ from celery import shared_task
 import requests
 import json
 from zerver.models import (
-    Message, MessageLanguage, Realm
+    Message, MessageLanguage, Realm, UserProfile
 )
 from django.conf import settings
 from zerver.lib.markdown import do_convert_msg_language
@@ -53,6 +53,7 @@ def translate_single_language(message: dict, language: str):
     mention_data = MentionData(
         mention_backend=mention_backend,
         content=message.get("content"),
+        message_sender=UserProfile.objects.get(id=message.get("sender"))
     )
     render_result = do_convert_msg_language(message=msg, content=translate_content,
                                             message_realm=realm, mention_data=mention_data)

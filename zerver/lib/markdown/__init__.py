@@ -2767,7 +2767,8 @@ def do_convert_msg_language(
     # Filters such as UserMentionPattern need a message.
     rendering_result: MessageRenderingResult = MessageRenderingResult(
         rendered_content="",
-        mentions_wildcard=False,
+        mentions_topic_wildcard=False,
+        mentions_stream_wildcard=False,
         mentions_user_ids=set(),
         mentions_user_group_ids=set(),
         alert_words=set(),
@@ -2787,6 +2788,7 @@ def do_convert_msg_language(
     _md_engine.url_embed_data = None
 
     # Pre-fetch data from the DB that is used in the Markdown thread
+    user_upload_previews = None
     if message_realm is not None:
         # Here we fetch the data structures needed to render
         # mentions/stream mentions from the database, but only
@@ -2796,24 +2798,31 @@ def do_convert_msg_language(
 
         if mention_data is None:
             mention_backend = MentionBackend(message_realm.id)
-            mention_data = MentionData(mention_backend, content)
+            message_sender = None
+            if message is not None:
+                message_sender = message.sender
+            mention_data = MentionData(mention_backend, content, message_sender)
 
         stream_names = possible_linked_stream_names(content)
         stream_name_info = mention_data.get_stream_name_map(stream_names)
 
         if content_has_emoji_syntax(content):
-            active_realm_emoji = message_realm.get_active_emoji()
+            active_realm_emoji = get_name_keyed_dict_for_active_realm_emoji(message_realm.id)
         else:
             active_realm_emoji = {}
+
+        user_upload_previews = get_user_upload_previews(message_realm.id, content)
+
 
         _md_engine.zulip_db_data = DbData(
             realm_alert_words_automaton=None,
             mention_data=mention_data,
             active_realm_emoji=active_realm_emoji,
-            realm_uri=message_realm.uri,
+            realm_url=message_realm.url,
             sent_by_bot=False,
             stream_names=stream_name_info,
             translate_emoticons=translate_emoticons,
+            user_upload_previews=user_upload_previews,
         )
 
     try:
@@ -2822,7 +2831,7 @@ def do_convert_msg_language(
         # extremely inefficient in corner cases) as well as user
         # errors (e.g. a linkifier that makes some syntax
         # infinite-loop).
-        rendering_result.rendered_content = timeout(5, lambda: _md_engine.convert(content))
+        rendering_result.rendered_content = unsafe_timeout(5, lambda: _md_engine.convert(content))
 
         # Throw an exception if the content is huge; this protects the
         # rest of the codebase from any bugs where we end up rendering
