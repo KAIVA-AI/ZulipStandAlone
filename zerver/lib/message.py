@@ -587,7 +587,6 @@ def get_raw_unread_data(
 ) -> RawUnreadMessagesResult:
     excluded_recipient_ids = get_inactive_recipient_ids(user_profile)
     first_visible_message_id = get_first_visible_message_id(user_profile.realm)
-    print("CONSOLE LOG ", first_visible_message_id)
     user_msgs = (
         UserMessage.objects.filter(
             user_profile=user_profile,
@@ -746,13 +745,11 @@ def extract_unread_data_from_um_rows(
     # unreads -- that's a state where Zulip's behavior will start to
     # be erroneous, and clients should display a warning.
     raw_unread_messages["old_unreads_missing"] = total_unreads == MAX_UNREAD_MESSAGES
-    print("DATA EXTRACT ", raw_unread_messages)
     return raw_unread_messages
 
 
 def aggregate_streams(*, input_dict: dict[int, RawUnreadStreamDict]) -> list[UnreadStreamInfo]:
     lookup_dict: dict[tuple[int, str], UnreadStreamInfo] = {}
-    print("INPUT AGGREGATE STREAM ", input_dict)
     for message_id, attribute_dict in input_dict.items():
         stream_id = attribute_dict["stream_id"]
         topic_name = attribute_dict["topic"]
