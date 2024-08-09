@@ -1,0 +1,32 @@
+<div class="header portico-header">
+    <div class="header-main" id="top_navbar">
+        {% if page_is_help_center or page_is_api_center %}
+        <a id="skip-navigation" href="#main-content">{{ _('Skip to main content') }}</a>
+        {% endif %}
+        <div class="float-right top-links">
+            {% if user_is_authenticated %}
+                {% include 'zerver/portico-header-dropdown.html' %}
+            {% else %}
+                {% if login_link_disabled %}
+                {% elif not only_sso %}
+                <a href="{{login_url}}">{{ _('Log in') }}</a>
+                {% endif %}
+            {% endif %}
+
+            {% if register_link_disabled %}
+            {% elif only_sso %}
+                <a href="{{ url('login-sso') }}">{{ _('Log in') }}</a>
+            {% else %}
+                {% if user_is_authenticated %}
+                {% else %}
+                <a href="{{ url('register') }}">{{ _('Sign up') }}</a>
+                {% endif %}
+            {% endif %}
+
+            {% if not is_self_hosting_management_page and not find_team_link_disabled %}
+            <a class= "find-accounts-link" href="{{ root_domain_url }}/accounts/find/">{{ _('Find accounts') }}</a>
+            <a href="{{ root_domain_url }}/new/">{{ _('New organization') }}</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
