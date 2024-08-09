@@ -552,8 +552,7 @@ def format_user_row(
     # decide which users to include avatars for, piggy-backing on a
     # different optimization for organizations with 10,000s of users.
     include_avatar_url = not user_avatar_url_field_optional or not row["long_term_idle"]
-    # if row['id'] == 97:
-    #     import pdb;pdb.set_trace()
+
     if include_avatar_url:
         result["avatar_url"] = get_avatar_field(
             user_id=row["id"],

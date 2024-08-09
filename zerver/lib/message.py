@@ -258,7 +258,6 @@ def messages_for_ids(
     return message_list
 
 def translate_msg_with_auto_mode(language, msgs):
-    print("REQUEST TRANLSATE message ", len(msgs))
     for msg in msgs:
         translate_message.delay(message=msg, language=language)
 

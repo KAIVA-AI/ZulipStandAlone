@@ -218,5 +218,5 @@ ALLOW_GROUP_VALUED_SETTINGS = True
 # for quicker testing of the feature.
 RESOLVE_TOPIC_UNDO_GRACE_PERIOD_SECONDS = 5
 
-ENDPOINT_CHAT_BOT="http://localhost:3001/"
+ENDPOINT_CHAT_BOT="http://10.1.55.49:3001/"
 CELERY_BROKER_URL = f"redis://127.0.0.1:6379/"
