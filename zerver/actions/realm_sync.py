@@ -13,7 +13,6 @@ from zerver.models import (
     UserProfile,
     Recipient,
     Stream,
-    UserGroup,
     Service,
     NamedUserGroup
 )
@@ -35,8 +34,10 @@ from zproject.config import get_secret
 import random, string
 from zerver.lib.streams import StreamDict, list_to_streams
 from collections.abc import Collection
-from zerver.actions.streams import bulk_remove_subscriptions
-from zerver.models.streams import bulk_get_streams
+from zerver.actions.streams import bulk_remove_subscriptions, do_deactivate_stream
+from django.conf import settings
+from zerver.lib.upload import upload_avatar_image
+from zerver.actions.user_settings import do_change_avatar_fields
 class ACTION(Enum):
     CREATE = "create"
     DEACTIVATE = "deactivate"
@@ -105,9 +106,11 @@ def do_sync_realm_and_users(
     for old_member in old_members:
         if "actions" not in old_member:
             old_member["actions"] = []
-        if old_member["delivery_email"] not in new_member_dict and old_member["is_active"] is True:
+        if old_member["delivery_email"] not in new_member_dict and old_member["is_active"] is True and \
+            old_member["role"] != UserProfile.ROLE_REALM_ADMINISTRATOR:
             old_member["actions"].append(ACTION.DEACTIVATE)
-        if old_member["delivery_email"] in new_member_dict and old_member["is_active"] is False:
+        if old_member["delivery_email"] in new_member_dict and old_member["is_active"] is False and \
+            old_member["role"] == UserProfile.ROLE_REALM_ADMINISTRATOR:
             old_member["actions"].append(ACTION.ACTIVATE)
         if len(old_member["actions"]) > 0:
             sync_members.append(old_member)
@@ -154,7 +157,6 @@ def do_sync_realm_and_users(
         {"realm": realm, "short_name": "kolla-a-issue", 'full_name': "Kolla-Issue", "handler": "a-issue",
                       "evaluation_default": DEFINE_EVALUATION_ISSUE}
     ]
-    print("START INITIAL SERVICE ")
     initial_service_external_realm(bot_list=list_bot_initial, realm=realm, user_profile=user_profile)
 
     # sync_stream(realm, 'Draft TestCase')
@@ -217,7 +219,6 @@ def sync_bot(realm: Realm, short_name: str, full_name: str, handler: str, defaul
             token=generate_api_key(),
         )
     elif bot.is_active is False:
-        print("##reactivate bot")
         do_reactivate_user(bot, acting_user=None)
 
     if default_sending_stream:
@@ -230,31 +231,58 @@ def sync_bot(realm: Realm, short_name: str, full_name: str, handler: str, defaul
 
 def remove_subscription_old_stream(realm: Realm, stream_dict: Collection[StreamDict], user_profile: UserProfile):
     stream_names = [stream.get("name") for stream in stream_dict]
-    streams = bulk_get_streams(realm=realm, stream_names=stream_names)
+    streams = Stream.objects.filter(name__in=stream_names, realm=realm)
     all_user = UserProfile.objects.filter(
         realm_id=realm.id,
         is_bot=False,
     ).all()
+    # remove user subscription from stream
     (removed, not_subscribed) = bulk_remove_subscriptions(
         realm=realm, users=all_user, streams=streams, acting_user=user_profile
     )
-
+    # remove stream from realm
+    for stream in streams:
+        do_deactivate_stream(stream, acting_user=user_profile)
     return removed
 
 
 
-def sync_streams(realm: Realm, user_profile: UserProfile, streams_raw: Collection[StreamDict], external_stream_type: int = 1):
+def sync_streams(realm: Realm, streams_raw: Collection[StreamDict], external_stream_type: int = 1):
     streams = []
-    # pass stream data
-    existing_stream, created_stream = list_to_streams(streams_raw=streams_raw, user_profile=user_profile, autocreate=True)
+    # get acting_user who is realm admin
+    acting_user = UserProfile.objects.filter(realm=realm, is_bot=False, is_active=True,
+                                             role__in=[UserProfile.ROLE_REALM_OWNER,
+                                                       UserProfile.ROLE_REALM_ADMINISTRATOR]).first()
+
+    if not acting_user:
+        acting_user = do_create_user(
+            email=f"admin_{realm.string_id}@vietis.com.vn", # TODO hardcode create admin user to have permission to create streams
+            password=''.join(random.choices(string.ascii_uppercase + string.digits, k=16)),
+            realm=realm,
+            full_name=f"{realm.string_id}_admin",
+            role=UserProfile.ROLE_REALM_ADMINISTRATOR,
+            tos_version=UserProfile.TOS_VERSION_BEFORE_FIRST_LOGIN,
+            acting_user=None,
+        )
+    # pass stream data StreamDict
+    existing_stream, created_stream = list_to_streams(streams_raw=streams_raw, user_profile=acting_user, autocreate=True)
     streams += existing_stream
     streams += created_stream
+    # update stream external_stream_type
+    for stream in streams:
+        if stream.external_stream_type == external_stream_type:
+            continue
+        stream.external_stream_type = external_stream_type
+        stream.save()
+
+    # set user subscription to list stream
     all_user = UserProfile.objects.filter(
-        realm_id=user_profile.realm.id,
+        realm_id=acting_user.realm.id,
         is_bot=False,
+        is_active=True
     ).all()
     bulk_add_subscriptions(
-        user_profile.realm, streams, all_user, acting_user=None
+        acting_user.realm, created_stream, all_user, acting_user=None
     )
 
     return
@@ -299,41 +327,6 @@ def sync_stream(realm: Realm, stream_name: str, external_stream_type: int = 1):
     )
     return stream
 
-def create_bot_translator(realm: Realm, short_name: str, full_name: str):
-    email = Address(username=short_name, domain=realm.get_bot_domain()).addr_spec
-    avatar_source = UserProfile.AVATAR_FROM_GRAVATAR
-    bot = UserProfile.objects.filter(
-        realm_id=realm.id,
-        full_name=full_name.strip(),
-    ).first()
-    if bot is None:
-        fake_owner = UserProfile.objects.filter(
-            realm_id=realm.id,
-            is_bot=False,
-        ).first() # TODO hardcode
-        bot_profile = do_create_user(
-            email=email,
-            password=None,
-            realm=realm,
-            full_name=full_name,
-            bot_type=UserProfile.OUTGOING_WEBHOOK_BOT,
-            bot_owner=fake_owner,
-            avatar_source=avatar_source,
-            acting_user=None,
-        )
-        chat_bot_domain = get_secret("chat_bot_domain")
-        # TODO check service exist and create
-        add_service(
-            name=short_name,
-            user_profile=bot_profile,
-            base_url=f'{chat_bot_domain}/bot/translator',
-            interface=Service.GENERIC,
-            token=generate_api_key(),
-        )
-    elif bot.is_active is False:
-        print("##reactivate bot")
-        do_reactivate_user(bot, acting_user=None)
-
 
 def mapping_handler_to_assistant_type(handler):
     define_handler = {
@@ -358,28 +351,17 @@ def add_evaluation_bot_userprofile(user_profile: UserProfile, tags: list) -> Eva
 
 def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: UserProfile):
     # add initial external stream
-    # stream_req = sync_stream(realm, 'Requirement', external_stream_type=2)
-    # stream_testcase = sync_stream(realm, 'TestCase', external_stream_type=2)
-    # stream_issue = sync_stream(realm, 'Issue', external_stream_type=2)
-    # initial_draft_stream_list = ['Draft Requirement','Draft TestCase','Draft Issue']
-    # initial_assistant_stream_list = ['Requirement','TestCase','Issue']
     external_stream = {
-        Stream.STREAM_PUBLIC: [],
         Stream.STREAM_ASSISTANT: ['Requirement','TestCase','Issue'],
         Stream.STREAM_DRAFT: ['Draft Requirement','Draft TestCase','Draft Issue']
     }
+    # remove public stream which was created by testing AI channel
     remove_subscription_old_stream(realm=realm, stream_dict=[{"name": "Private AI Chat"}], user_profile=user_profile)
-
     for _type, stream_list in external_stream.items():
         streams_as_dict: list[StreamDict] = [
-            {"name": stream_name.strip(), "is_web_public": True} for stream_name in stream_list
+            {"name": stream_name.strip(), "is_web_public": False} for stream_name in stream_list
         ]
-        sync_streams(realm=realm, user_profile=user_profile, streams_raw=streams_as_dict, external_stream_type=_type)
-    # initial_public_stream_list = ['Private AI Chat']
-    # for stream in initial_draft_stream_list:
-    #     sync_stream(realm, stream, external_stream_type=3)
-    # for stream in initial_public_stream_list:
-    #     sync_stream(realm, stream, external_stream_type=1)
+        sync_streams(realm=realm, streams_raw=streams_as_dict, external_stream_type=_type)
 
     for bot in bot_list:
         tags = bot.pop('evaluation_default')
@@ -388,16 +370,29 @@ def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: U
         if bot.full_name == "Kolla-Req":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            # bot.default_sending_stream = stream_req
+            bot.default_sending_stream = Stream.objects.filter(name="Requirement", realm=realm)
             bot.save()
         elif bot.full_name == "Kolla-Testcase":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            # bot.default_sending_stream = stream_testcase
+            bot.default_sending_stream = Stream.objects.filter(name="TestCase", realm=realm)
             bot.save()
         elif bot.full_name == "Kolla-Issue":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            # bot.default_sending_stream = stream_issue
+            bot.default_sending_stream = Stream.objects.filter(name="Issue", realm=realm)
             bot.save()
+        # update avatar bot one time
+        if bot.avatar_source != UserProfile.AVATAR_FROM_USER:
+            update_avatar_bot(bot)
+    return True
+
+
+def update_avatar_bot(bot: UserProfile):
+    static_path = settings.STATICFILES_DIRS[0]
+    avatar_bot_default_path = static_path + "/images/characters/bot_avatar.png"
+    with open(avatar_bot_default_path, "rb") as imageFile:
+        # bot_profile = UserProfile.objects.filter(is_bot=True)
+        upload_avatar_image(user_file=imageFile, user_profile=bot)
+    do_change_avatar_fields(bot, UserProfile.AVATAR_FROM_USER, acting_user=bot.bot_owner, skip_notify=True)
     return True

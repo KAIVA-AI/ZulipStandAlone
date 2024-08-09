@@ -209,7 +209,6 @@ def create_streams_if_needed(
     existing_streams: list[Stream] = []
     for stream_dict in stream_dicts:
         invite_only = stream_dict.get("invite_only", False)
-        print("CREATE STREAM ", stream_dict['name'])
         stream, created = create_stream_if_needed(
             realm,
             stream_dict["name"],
@@ -713,7 +712,6 @@ def list_to_streams(
     existing_streams: list[Stream] = []
     missing_stream_dicts: list[StreamDict] = []
     existing_stream_map = bulk_get_streams(user_profile.realm, stream_set)
-
     if unsubscribing_others:
         existing_recipient_ids = [stream.recipient_id for stream in existing_stream_map.values()]
         subs = Subscription.objects.filter(
@@ -727,20 +725,18 @@ def list_to_streams(
 
     message_retention_days_not_none = False
     web_public_stream_requested = False
+
     for stream_dict in streams_raw:
         stream_name = stream_dict["name"]
         stream = existing_stream_map.get(stream_name.lower())
-        print("CHECK ẼITST stream ", stream_name)
         if stream is None:
             if stream_dict.get("message_retention_days", None) is not None:
                 message_retention_days_not_none = True
             missing_stream_dicts.append(stream_dict)
-
             if autocreate and stream_dict["is_web_public"]:
                 web_public_stream_requested = True
         else:
             existing_streams.append(stream)
-    print("len(missing_stream_dicts) ", len(missing_stream_dicts))
     if len(missing_stream_dicts) == 0:
         # This is the happy path for callers who expected all of these
         # streams to exist already.

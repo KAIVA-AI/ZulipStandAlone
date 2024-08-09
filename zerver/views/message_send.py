@@ -17,7 +17,7 @@ from zerver.actions.message_send import (
 )
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.markdown import render_message_markdown
-from zerver.lib.message import get_n_latest_messages_sent_to_bot, translate_msg_with_auto_mode
+from zerver.lib.message import get_n_latest_messages_sent_to_bot
 from zerver.lib.request import REQ, RequestNotes, has_request_variables
 from zerver.lib.response import json_success
 from zerver.lib.topic import REQ_topic

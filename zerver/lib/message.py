@@ -257,11 +257,8 @@ def messages_for_ids(
 
     return message_list
 
-def translate_msg_with_auto_mode(language, msg_ids):
-    msg_languages = MessageLanguage.objects.filter(message_id__in=msg_ids, language=language).values("id")
-    existing_msg_languages = [msg.get("id") for msg in msg_languages]
-    translate_msg = list(set(msg_ids) - set(existing_msg_languages))
-    msgs = Message.objects.filter(id__in=translate_msg).values("id","content","realm")
+def translate_msg_with_auto_mode(language, msgs):
+    print("REQUEST TRANLSATE message ", len(msgs))
     for msg in msgs:
         translate_message.delay(message=msg, language=language)
 

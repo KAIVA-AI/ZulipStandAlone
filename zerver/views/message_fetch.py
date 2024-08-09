@@ -15,7 +15,7 @@ from zerver.context_processors import get_valid_realm_from_request
 from zerver.lib.exceptions import JsonableError, MissingAuthenticationError
 from zerver.lib.message import get_first_visible_message_id, messages_for_ids, \
     get_n_latest_messages_sent_to_bot, get_receiver_in_group_direct_message_by_user_profile, \
-    get_recent_private_conversations
+    get_recent_private_conversations, translate_msg_with_auto_mode
 from zerver.lib.narrow import (
     NarrowParameter,
     add_narrow_conditions,
@@ -291,6 +291,10 @@ def get_messages_backend(
     evaluative_msg_ids = [evaluation.message.id for evaluation in list(evaluative_msg)]
     for msg in message_list:
         msg['is_evaluated'] = True if msg['id'] in evaluative_msg_ids else False
+    untranslated_message_list = list(filter(lambda x: x.get('translate_successfully') != True, message_list))
+    translate_msg_with_auto_mode(language, msgs=[
+        {"id": msg.get("id"), "content": msg.get("content"), "realm": msg.get("sender_realm_id")} for msg in
+        untranslated_message_list])
     # done mark
     ret = dict(
         messages=message_list,

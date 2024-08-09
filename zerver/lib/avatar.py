@@ -71,7 +71,9 @@ def get_avatar_field(
     either user-uploaded or a gravatar, and then we'll add version
     info to try to avoid stale caches.
     """
+    print("get avatar url ", user_id, avatar_source, client_gravatar)
     if avatar_source == "U":
+        print("base path from ids ")
         hash_key = user_avatar_base_path_from_ids(user_id, avatar_version, realm_id)
         return get_avatar_url(hash_key, medium=medium)
 
@@ -84,9 +86,12 @@ def get_gravatar_url(email: str, avatar_version: int, medium: bool = False) -> s
 
 
 def _get_unversioned_gravatar_url(email: str, medium: bool) -> str:
+    # import pdb;pdb.set_trace()
+    print("settings ", settings.ENABLE_GRAVATAR)
     if settings.ENABLE_GRAVATAR:
         gravitar_query_suffix = f"&s={MEDIUM_AVATAR_SIZE}" if medium else ""
         hash_key = gravatar_hash(email)
+        print("PATH URL GRAVATAR ", f"https://secure.gravatar.com/avatar/{hash_key}?d=identicon{gravitar_query_suffix}")
         return f"https://secure.gravatar.com/avatar/{hash_key}?d=identicon{gravitar_query_suffix}"
     elif settings.DEFAULT_AVATAR_URI is not None:
         return settings.DEFAULT_AVATAR_URI

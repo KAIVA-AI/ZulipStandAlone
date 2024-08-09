@@ -1041,7 +1041,6 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
             # self-hosted servers, we require the feature to be enabled at
             # the server level before it is available to users.
             return False
-
         if self.plan_type == Realm.PLAN_TYPE_LIMITED:
             # In Zulip Cloud, we also require a paid or sponsored
             # plan, to protect against the spam/abuse attacks that
