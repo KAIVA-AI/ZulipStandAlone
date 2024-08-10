@@ -7,7 +7,7 @@ from zerver.models import (
 from django.conf import settings
 from zerver.lib.markdown import do_convert_msg_language
 from zerver.lib.mention import MentionBackend, MentionData
-
+from zerver.lib.message_cache import get_msg_language
 CHAT_BOT_URL = settings.ENDPOINT_CHAT_BOT
 
 def api_chat_bot(path, language, content):
@@ -42,6 +42,10 @@ def translate_single_language(message: dict, language: str):
     #     "message": message.get("content")
     # }
     print("input task ", message)
+    # check message language exist
+    msg_language = get_msg_language(msg_id=message.get("id"), language=language)
+    if msg_language:
+        return f"Msg {message.get("id")} have translated already {msg_language}"
     translate_content = api_chat_bot(path="bot/translate", content=message.get("content"), language=language)
     if not translate_content:
         return False

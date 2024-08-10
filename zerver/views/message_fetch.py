@@ -291,7 +291,11 @@ def get_messages_backend(
     evaluative_msg_ids = [evaluation.message.id for evaluation in list(evaluative_msg)]
     for msg in message_list:
         msg['is_evaluated'] = True if msg['id'] in evaluative_msg_ids else False
-
+    untranslated_message_list = list(filter(lambda x: x.get('translate_successfully') != True, message_list))
+    print("TOTAL ", untranslated_message_list)
+    # translate_msg_with_auto_mode(language, msgs=[
+    #     {"id": msg.get("id"), "content": msg.get("content"), "realm": msg.get("sender_realm_id")} for msg in
+    #     untranslated_message_list])
     # done mark
     ret = dict(
         messages=message_list,
