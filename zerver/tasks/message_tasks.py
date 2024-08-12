@@ -37,15 +37,11 @@ def create_or_update_message_language(message, language, data):
     return msg
 
 def translate_single_language(message: dict, language: str):
-    # payload = {
-    #     "language": language,
-    #     "message": message.get("content")
-    # }
     print("input task ", message)
     # check message language exist
     msg_language = get_msg_language(msg_id=message.get("id"), language=language)
     if msg_language:
-        return f"Msg {message.get("id")} have translated already {msg_language}"
+        return "Msg %s have translated already %s" % (message.get("id"), msg_language)
     translate_content = api_chat_bot(path="bot/translate", content=message.get("content"), language=language)
     if not translate_content:
         return False
@@ -61,14 +57,12 @@ def translate_single_language(message: dict, language: str):
     )
     render_result = do_convert_msg_language(message=msg, content=translate_content,
                                             message_realm=realm, mention_data=mention_data)
-    print("RENDER_RESULT ", render_result)
 
     data = {
         "content": translate_content,
         "rendered_content": render_result.rendered_content,
         "rendered_content_version": 1
     }
-    print("NEW DATA ", data)
     # create or update message language
     msg = create_or_update_message_language(message=message, language=language, data=data)
     return translate_content
