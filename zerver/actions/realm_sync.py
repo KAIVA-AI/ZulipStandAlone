@@ -38,6 +38,7 @@ from zerver.actions.streams import bulk_remove_subscriptions, do_deactivate_stre
 from django.conf import settings
 from zerver.lib.upload import upload_avatar_image
 from zerver.actions.user_settings import do_change_avatar_fields
+import os
 class ACTION(Enum):
     CREATE = "create"
     DEACTIVATE = "deactivate"
@@ -370,17 +371,17 @@ def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: U
         if bot.full_name == "Kolla-Req":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            bot.default_sending_stream = Stream.objects.filter(name="Requirement", realm=realm)
+            bot.default_sending_stream = Stream.objects.filter(name="Requirement", realm=realm).first()
             bot.save()
         elif bot.full_name == "Kolla-Testcase":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            bot.default_sending_stream = Stream.objects.filter(name="TestCase", realm=realm)
+            bot.default_sending_stream = Stream.objects.filter(name="TestCase", realm=realm).first()
             bot.save()
         elif bot.full_name == "Kolla-Issue":
             add_evaluation_bot_userprofile(user_profile=bot, tags=tags)
             # set bot default sending stream
-            bot.default_sending_stream = Stream.objects.filter(name="Issue", realm=realm)
+            bot.default_sending_stream = Stream.objects.filter(name="Issue", realm=realm).first()
             bot.save()
         # update avatar bot one time
         if bot.avatar_source != UserProfile.AVATAR_FROM_USER:
@@ -389,10 +390,9 @@ def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: U
 
 
 def update_avatar_bot(bot: UserProfile):
-    static_path = settings.STATICFILES_DIRS[0]
+    static_path = os.path.join(settings.DEPLOY_ROOT, "static")
     avatar_bot_default_path = static_path + "/images/characters/bot_avatar.png"
     with open(avatar_bot_default_path, "rb") as imageFile:
-        # bot_profile = UserProfile.objects.filter(is_bot=True)
         upload_avatar_image(user_file=imageFile, user_profile=bot)
     do_change_avatar_fields(bot, UserProfile.AVATAR_FROM_USER, acting_user=bot.bot_owner, skip_notify=True)
     return True
