@@ -254,8 +254,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:8080",
-    "https://dev.kollabridge.com",
-    "https://beta.kollabridge.com",
 ]
 
 CORS_ALLOW_METHODS = (

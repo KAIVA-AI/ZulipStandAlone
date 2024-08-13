@@ -69,25 +69,34 @@ sudo su zulip -c '/home/zulip/deployments/current/tools/update-prod-static'
 sudo su zulip -c '/home/zulip/deployments/current/scripts/restart-server'
 ```
 
-## Upgrade zulip 7.5 -->8x
-```
-YOUR_EMAIL=hao.nguyendang@vietis.com.vn
-YOUR_HOSTNAME=chat-beta.kollabridge.com
+## Upgrade zulip 7.5 --> 9.0
+```sh
+sudo su zulip
+cd /home/zulip/deployments/current
+
+mkdir ~/backup
+cp /etc/zulip/zulip.conf ~/backup/
+cp /etc/zulip/settings.py ~/backup/
+cp /etc/zulip/zulip-secrets.conf ~/backup/
+
+source zulip-current-venv/bin/activate
+python manage.py backup
+mv /tmp/zulip-backup-2024-08-13-04-03-21-5thj8p1k.tar.gz ~/backup/
+exit
 
 sudo -s
-change to root and command run self-certbot:
+add-apt-repository universe
+apt update
 
-scripts/setup/install --self-signed-cert --email=$YOUR_EMAIL --hostname=chat-dev-8x.kollabridge.com --postgresql-version 14
-
-command run certbot:
-- scripts/setup/install --certbot --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME --postgresql-version 14
+cd /home/zulip/deployments/current
+source zulip-current-venv/bin/activate
+YOUR_EMAIL=hao.nguyendang@vietis.com.vn
+YOUR_HOSTNAME=chat-beta.kollabridge.com
+scripts/setup/install --self-signed-cert --postgresql-version 15 --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME --no-init-db
 
 ## Error when running install:
-# start rabbitmq error cuz missing erlang
-- apt install rabbitmq-server erlang
+### start rabbitmq error cuz missing erlang
+### apt install rabbitmq-server erlang
 
-# add safe directory when cache zulip git version
-git config --global --add safe.directory /home/zulip/deployments/2024-07-25-04-03-58
-
+scripts/setup/restore-backup --keep-zulipconf --keep-settings /home/ubuntu/zulip-backup-2024-08-13-04-03-21-5thj8p1k.tar.gz
 ```
-
