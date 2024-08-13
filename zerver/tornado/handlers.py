@@ -96,7 +96,6 @@ class AsyncDjangoHandler(tornado.web.RequestHandler):
     @override
     def initialize(self, django_handler: base.BaseHandler) -> None:
         def set_default_headers(self):
-            self.set_header('Access-Control-Allow-Origin', '*')
             self.set_header('Access-Control-Allow-Headers', '*')
             self.set_header('Access-Control-Max-Age', 1000)
             self.set_header('Content-type', 'application/json')
