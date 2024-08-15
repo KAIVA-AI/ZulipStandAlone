@@ -115,7 +115,6 @@ class UnreadMessagesResult(TypedDict):
 @dataclass
 class SendMessageRequest:
     message: Message
-    context_messages: list[str]
     rendering_result: MessageRenderingResult
     stream: Stream | None
     sender_muted_stream: bool | None
@@ -1444,45 +1443,6 @@ def set_visibility_policy_possible(user_profile: UserProfile, message: Message) 
 def remove_single_newlines(content: str) -> str:
     content = content.strip("\n")
     return re.sub(r"(?<!\n)\n(?!\n|[-*] |[0-9]+\. )", " ", content)
-
-def get_n_latest_messages_sent_to_bot(
-    number_of_latest_messages: int,
-    topic_name: str,
-    stream_id: int,
-    bot_name: str
-) -> Any:
-    query = SQL(
-        """
-    select
-        zm."content"
-    from
-        zerver_stream zs
-    inner join zerver_message zm on
-        zs.recipient_id = zm.recipient_id
-    where
-        (zs.id = %(stream_id)s
-        and starts_with(zm."content",%(bot_name_hashtag)s)
-        and zm.subject = %(topic_name)s)
-        or (zm.sender_id = (select zu.id from zerver_userprofile zu where zu.full_name = %(bot_name)s))
-    order by
-        zm.date_sent desc
-    limit %(number_of_latest_messages)s;
-        """
-    )
-    with connection.cursor() as cursor:
-        cursor.execute(
-            query,
-            {
-                "number_of_latest_messages": number_of_latest_messages,
-                "stream_id": stream_id,
-                "topic_name": topic_name,
-                "bot_name_hashtag": '@**{}**'.format(bot_name),
-                "bot_name": bot_name
-            },
-        )
-        rows = cursor.fetchall()
-    rows = [item[0] for item in rows]
-    return rows
 
 
 def get_receiver_in_group_direct_message_by_user_profile(user_profile_id) -> Any:

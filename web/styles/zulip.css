@@ -1293,7 +1293,7 @@ nav {
 
         .nav-logo {
             display: inline-block;
-            height: 20px;
+            height: 40px;
             max-width: 200px;
 
             @media (height < $short_navbar_cutoff_height) {

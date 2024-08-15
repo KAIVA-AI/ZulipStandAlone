@@ -165,7 +165,6 @@ function initialize_bottom_whitespace() {
 }
 
 function initialize_navbar() {
-    console.log("PARAMS ", page_params)
     let full_name = page_params.user_id !==undefined ? people.get_display_full_name(page_params.user_id) : '';
     const rendered_navbar = render_navbar({
         embedded: page_params.narrow_stream !== undefined,

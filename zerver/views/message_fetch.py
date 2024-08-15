@@ -14,7 +14,7 @@ from sqlalchemy.types import Integer, Text
 from zerver.context_processors import get_valid_realm_from_request
 from zerver.lib.exceptions import JsonableError, MissingAuthenticationError
 from zerver.lib.message import get_first_visible_message_id, messages_for_ids, \
-    get_n_latest_messages_sent_to_bot, get_receiver_in_group_direct_message_by_user_profile, \
+    get_receiver_in_group_direct_message_by_user_profile, \
     get_recent_private_conversations, translate_msg_with_auto_mode
 from zerver.lib.narrow import (
     NarrowParameter,
@@ -292,7 +292,7 @@ def get_messages_backend(
     for msg in message_list:
         msg['is_evaluated'] = True if msg['id'] in evaluative_msg_ids else False
     untranslated_message_list = list(filter(lambda x: x.get('translate_successfully') != True, message_list))
-    print("TOTAL ", untranslated_message_list)
+    print("TOTAL ", len(untranslated_message_list), [msg.get("id") for msg in untranslated_message_list])
     # translate_msg_with_auto_mode(language, msgs=[
     #     {"id": msg.get("id"), "content": msg.get("content"), "realm": msg.get("sender_realm_id")} for msg in
     #     untranslated_message_list])
@@ -370,25 +370,6 @@ def messages_in_narrow_backend(
             )
 
     return json_success(request, data={"messages": search_fields})
-
-
-@has_request_variables
-def get_chatbot_context(
-    request: HttpRequest,
-    user_profile: UserProfile,
-    number_of_latest_messages: int = REQ(json_validator=check_int_range(1,20)),
-    topic_name: str = REQ(str_validator=check_required_string),
-    stream_id: int = REQ(json_validator=check_int),
-    bot_name: str = REQ(str_validator=check_required_string)
-) -> HttpResponse:
-     context_messages = get_n_latest_messages_sent_to_bot(number_of_latest_messages, topic_name, stream_id, bot_name)
-     context_messages = list(context_messages)
-     ret = dict(
-        context_messages=context_messages,
-        result="success",
-        msg=""
-     )
-     return json_success(request, data=ret)
 
 
 @has_request_variables
