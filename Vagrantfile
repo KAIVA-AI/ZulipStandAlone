@@ -59,12 +59,16 @@ Vagrant.configure("2") do |config|
     exit
   end
 
+  config.vm.network "forwarded_port", guest: 9990, host: 9990, host_ip: host_ip_addr
   config.vm.network "forwarded_port", guest: 9991, host: host_port, host_ip: host_ip_addr
   config.vm.network "forwarded_port", guest: 9994, host: host_port + 3, host_ip: host_ip_addr
+  config.vm.network "forwarded_port", guest: 5432, host: host_port + 4, host_ip: "0.0.0.0"
   # Specify Docker provider before VirtualBox provider so it's preferred.
   config.vm.provider "docker" do |d, override|
     override.vm.box = nil
     d.build_dir = File.join(__dir__, "tools", "setup", "dev-vagrant-docker")
+    # d.build_dir = File.join(__dir__, "tools", "setup", "cached-vagrant-docker")
+    # d.volumes = ["chat-server-beta:/var/lib/postgresql/12/main"]
     d.build_args = ["--build-arg", "VAGRANT_UID=#{Process.uid}"]
     if !ubuntu_mirror.empty?
       d.build_args += ["--build-arg", "UBUNTU_MIRROR=#{ubuntu_mirror}"]
