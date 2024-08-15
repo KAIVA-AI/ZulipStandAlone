@@ -93,7 +93,6 @@ from zerver.models import (
     UserPresence,
     UserProfile,
     UserTopic,
-    AssistantJob
 )
 from zerver.models.clients import get_client
 from zerver.models.groups import SystemGroups
@@ -573,7 +572,6 @@ def build_message_send_dict(
     limit_unread_user_ids: set[int] | None = None,
     disable_external_notifications: bool = False,
     recipients_for_user_creation_events: dict[UserProfile, set[int]] | None = None,
-    context_messages: list[str] | None = None,
 ) -> SendMessageRequest:
     """Returns a dictionary that can be passed into do_send_messages.  In
     production, this is always called by check_message, but some
@@ -678,7 +676,6 @@ def build_message_send_dict(
         mention_data=mention_data,
         mentioned_user_groups_map=mentioned_user_groups_map,
         message=message,
-        context_messages=context_messages,
         rendering_result=rendering_result,
         active_user_ids=info.active_user_ids,
         online_push_user_ids=info.online_push_user_ids,
@@ -1014,7 +1011,6 @@ def do_send_messages(
         # Deliver events to the real-time push system, as well as
         # enqueuing any additional processing triggered by the message.
         wide_message_dict = MessageDict.wide_dict(send_request.message, realm_id)
-        wide_message_dict["context_messages"] = send_request.context_messages
         user_flags = user_message_flags.get(send_request.message.id, {})
 
         """
@@ -1376,7 +1372,6 @@ def check_send_message(
     local_id: str | None = None,
     sender_queue_id: str | None = None,
     widget_content: str | None = None,
-    context_messages: list[str] | None = None,
     *,
     skip_stream_access_check: bool = False,
     read_by_sender: bool = False,
@@ -1396,7 +1391,6 @@ def check_send_message(
             local_id,
             sender_queue_id,
             widget_content,
-            context_messages=context_messages,
             skip_stream_access_check=skip_stream_access_check,
         )
     except ZephyrMessageAlreadySentError as e:
@@ -1662,7 +1656,6 @@ def check_message(
     sender_queue_id: str | None = None,
     widget_content: str | None = None,
     email_gateway: bool = False,
-    context_messages: list[str] = None,
     *,
     skip_stream_access_check: bool = False,
     message_type: int = Message.MessageType.NORMAL,
@@ -1809,7 +1802,6 @@ def check_message(
         limit_unread_user_ids=limit_unread_user_ids,
         disable_external_notifications=disable_external_notifications,
         recipients_for_user_creation_events=recipients_for_user_creation_events,
-        context_messages=context_messages
     )
 
     if (

@@ -81,7 +81,6 @@ from zerver.views.message_edit import (
 from zerver.views.message_fetch import (
     get_messages_backend,
     messages_in_narrow_backend,
-    get_chatbot_context,
     get_list_user_direct_message
 )
 from zerver.views.message_flags import (
@@ -371,7 +370,6 @@ v1_api_and_json_patterns = [
         GET=(get_messages_backend, {"allow_anonymous_user_web"}),
         POST=(send_message_backend, {"allow_incoming_webhooks"}),
     ),
-    rest_path("messages/get_chatbot_context", GET=get_chatbot_context),
     rest_path(
         "messages/<int:message_id>",
         GET=(json_fetch_raw_message, {"allow_anonymous_user_web"}),

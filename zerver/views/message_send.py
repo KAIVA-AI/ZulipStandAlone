@@ -17,7 +17,6 @@ from zerver.actions.message_send import (
 )
 from zerver.lib.exceptions import JsonableError
 from zerver.lib.markdown import render_message_markdown
-from zerver.lib.message import get_n_latest_messages_sent_to_bot
 from zerver.lib.request import REQ, RequestNotes, has_request_variables
 from zerver.lib.response import json_success
 from zerver.lib.topic import REQ_topic
@@ -237,8 +236,6 @@ def send_message_backend(
         read_by_sender = client.default_read_by_sender()
 
     data: dict[str, int] = {}
-    # Fixed bot_name = VietISBot and limit 5 latest messages
-    context_messages = get_n_latest_messages_sent_to_bot(10, topic_name, stream_id, "VietISBot")
     sent_message_result = check_send_message(
         sender,
         client,
@@ -255,7 +252,6 @@ def send_message_backend(
         sender_queue_id=queue_id,
         widget_content=widget_content,
         read_by_sender=read_by_sender,
-        context_messages=context_messages,
     )
     data["id"] = sent_message_result.message_id
     if sent_message_result.automatic_new_visibility_policy:
