@@ -15,8 +15,11 @@ from zproject import settings
 
 cache = settings.CACHES["default"]
 assert isinstance(cache, dict)  # for mypy
-client = bmemcached.Client((cache["LOCATION"],), **cache["OPTIONS"])
 try:
-    client.flush_all()
-finally:
-    client.disconnect_all()
+    client = bmemcached.Client((cache["LOCATION"],), **cache["OPTIONS"])
+    try:
+        client.flush_all()
+    finally:
+        client.disconnect_all()
+except (Exception,):
+    pass

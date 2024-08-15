@@ -67,9 +67,10 @@ Vagrant.configure("2") do |config|
   config.vm.provider "docker" do |d, override|
     override.vm.box = nil
     d.build_dir = File.join(__dir__, "tools", "setup", "dev-vagrant-docker")
-    # d.build_dir = File.join(__dir__, "tools", "setup", "cached-vagrant-docker")
-    # d.volumes = ["chat-server-beta:/var/lib/postgresql/12/main"]
     d.build_args = ["--build-arg", "VAGRANT_UID=#{Process.uid}"]
+    # d.build_dir = File.join(__dir__, "tools", "setup", "cached-vagrant-docker")
+    # d.volumes = ["chat-server-beta:/var/lib/postgresql/14/main"]
+    # d.build_args = ["--build-arg", "VAGRANT_UID=1001"]
     if !ubuntu_mirror.empty?
       d.build_args += ["--build-arg", "UBUNTU_MIRROR=#{ubuntu_mirror}"]
     end

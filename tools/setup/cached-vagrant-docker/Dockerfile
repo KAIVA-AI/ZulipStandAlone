@@ -1,4 +1,5 @@
 # docker volume create --name=chat-server-beta
+# un-comment volume config in Vagrantfile and up the vagrant
 # after provision, run below to create a new image
 # docker ps
 # export CONTAINERID=
