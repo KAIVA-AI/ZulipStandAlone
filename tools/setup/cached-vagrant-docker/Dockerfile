@@ -1,10 +1,11 @@
 # docker volume create --name=chat-server-beta
-# un-comment volume config in Vagrantfile and up the vagrant
+# set IS_WINDOWS true or IS_MACOS true in ~/.zulip-vagrant-config
+# vagrant up --provider=docker --provision
 # after provision, run below to create a new image
 # docker ps
 # export CONTAINERID=
 # docker commit $CONTAINERID chat-server:beta
-# un-comment cached-vagrant-docker in Vagrantfile
+# set IS_CACHED_BUILD true in ~/.zulip-vagrant-config
 FROM chat-server:beta
 
 RUN \
