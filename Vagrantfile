@@ -20,6 +20,10 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.synced_folder ".", "/srv/zulip", docker_consistency: "z"
 
+  is_cached_build = nil
+  is_windows = nil
+  is_macos = nil
+
   vagrant_config_file = ENV["HOME"] + "/.zulip-vagrant-config"
   if File.file?(vagrant_config_file)
     IO.foreach(vagrant_config_file) do |line|
@@ -36,6 +40,9 @@ Vagrant.configure("2") do |config|
       when "GUEST_MEMORY_MB"; vm_memory = value
       when "UBUNTU_MIRROR"; ubuntu_mirror = value
       when "VBOXADD_VERSION"; vboxadd_version = value
+      when "IS_CACHED_BUILD"; is_cached_build = value
+      when "IS_WINDOWS"; is_windows = value
+      when "IS_MACOS"; is_macos = value
       end
     end
   end
@@ -67,9 +74,17 @@ Vagrant.configure("2") do |config|
   config.vm.provider "docker" do |d, override|
     override.vm.box = nil
     d.build_dir = File.join(__dir__, "tools", "setup", "dev-vagrant-docker")
-    # d.build_dir = File.join(__dir__, "tools", "setup", "cached-vagrant-docker")
-    # d.volumes = ["chat-server-beta:/var/lib/postgresql/12/main"]
     d.build_args = ["--build-arg", "VAGRANT_UID=#{Process.uid}"]
+    if !is_cached_build.nil?
+      d.build_dir = File.join(__dir__, "tools", "setup", "cached-vagrant-docker")
+    end
+    if !is_windows.nil?
+      d.volumes = ["chat-server-beta:/var/lib/postgresql/14/main"]
+      d.build_args = ["--build-arg", "VAGRANT_UID=1001"]
+    end
+    if !is_macos.nil?
+      d.volumes = ["chat-server-beta:/var/lib/postgresql/14/main"]
+    end
     if !ubuntu_mirror.empty?
       d.build_args += ["--build-arg", "UBUNTU_MIRROR=#{ubuntu_mirror}"]
     end
