@@ -1,0 +1,4 @@
+Django[argon2]==4.2.*
+django-stubs-ext
+asgiref==3.7.2
+typing-extensions

@@ -3,6 +3,8 @@
 # Run server
 ## Local
 ```sh
+pip install --use-deprecated=legacy-resolver --no-deps -r requirements/mac.txt
+
 tools/run-dev
 ```
 ## MacOS
