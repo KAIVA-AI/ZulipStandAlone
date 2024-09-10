@@ -1,7 +1,8 @@
 # docker volume create --name=chat-server-beta
 # set IS_WINDOWS true or IS_MACOS true in ~/.zulip-vagrant-config
 # vagrant up --provider=docker --provision
-# after provision, run below to create a new image
+# after provision, change postgresql setting
+# run below to create a new image
 # docker ps
 # export CONTAINERID=
 # docker commit $CONTAINERID chat-server:beta

@@ -3,6 +3,10 @@
 # Run server
 ## Local
 ```sh
+# zproject/dev-secrets.conf
+# jwt_secret = zrmy9qzc4dazcrhalnvqp5t0jcnhvnou6j8zsakfl6ci0uhz69
+# chat_bot_domain = http://10.1.35.130:9876
+
 tools/run-dev
 ```
 ## MacOS

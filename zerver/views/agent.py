@@ -140,8 +140,8 @@ def get_ext_user_api_key(
     if realm == None:
         return json_response(res_type="error", msg="Realm not found", status=404)
 
-    key = settings.JWT_AUTH_KEYS['vcollab']["key"]
-    algorithms = settings.JWT_AUTH_KEYS['vcollab']["algorithms"]
+    key = settings.JWT_AUTH_KEYS['default']["key"]
+    algorithms = settings.JWT_AUTH_KEYS['default']["algorithms"]
 
     api_key = ''
     try:

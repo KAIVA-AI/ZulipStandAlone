@@ -67,7 +67,7 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.network "forwarded_port", guest: 9990, host: 9990, host_ip: host_ip_addr
-  config.vm.network "forwarded_port", guest: 9991, host: host_port, host_ip: host_ip_addr
+  config.vm.network "forwarded_port", guest: 9991, host: host_port, host_ip: "0.0.0.0"
   config.vm.network "forwarded_port", guest: 9994, host: host_port + 3, host_ip: host_ip_addr
   config.vm.network "forwarded_port", guest: 5432, host: host_port + 4, host_ip: "0.0.0.0"
   # Specify Docker provider before VirtualBox provider so it's preferred.

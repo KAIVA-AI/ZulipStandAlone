@@ -715,8 +715,8 @@ def get_basic_credentials(
         if auth_type.lower() == "bearer":
             domain = get_subdomain(request)
             realm = Realm.objects.filter(string_id=domain).first()
-            key = settings.JWT_AUTH_KEYS['vcollab']["key"]
-            algorithms = settings.JWT_AUTH_KEYS['vcollab']["algorithms"]
+            key = settings.JWT_AUTH_KEYS['default']["key"]
+            algorithms = settings.JWT_AUTH_KEYS['default']["algorithms"]
             options = {"verify_signature": True}
             payload = jwt.decode(credentials, key, algorithms=algorithms, options=options)
             email = payload.get("email", None)

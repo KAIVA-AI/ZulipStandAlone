@@ -6,7 +6,7 @@ from zerver.actions.users import (
 )
 from typing import Any, Dict, Literal, Optional, Tuple, Union, List, Sequence
 from enum import Enum
-from zerver.lib.users import add_service
+from zerver.lib.users import add_service, update_service
 from zerver.lib.utils import generate_api_key
 from zerver.models import (
     Realm,
@@ -16,6 +16,7 @@ from zerver.models import (
     Service,
     NamedUserGroup
 )
+from zerver.models.bots import get_service_profile
 from zerver.models.groups import SystemGroups
 from zerver.actions.realm_settings import update_realm_description_by_id
 from zerver.actions.create_user import do_create_user, do_reactivate_user
@@ -190,6 +191,8 @@ def sync_bot(realm: Realm, short_name: str, full_name: str, handler: str, defaul
         realm_id=realm.id,
         full_name=full_name.strip(),
     ).first()
+    chat_bot_domain = get_secret("chat_bot_domain")
+    service_webhook=f'{chat_bot_domain}/bot/{realm.string_id}/{handler}'
     if bot is None:
         fake_owner = UserProfile.objects.filter(
             realm_id=realm.id,
@@ -207,7 +210,6 @@ def sync_bot(realm: Realm, short_name: str, full_name: str, handler: str, defaul
             acting_user=None,
             default_sending_stream=default_sending_stream
         )
-        chat_bot_domain = get_secret("chat_bot_domain")
         # TODO check service exist and create
         realmStringId = realm.string_id
         if realmStringId is None or realmStringId == '':
@@ -215,12 +217,19 @@ def sync_bot(realm: Realm, short_name: str, full_name: str, handler: str, defaul
         add_service(
             name=short_name,
             user_profile=bot,
-            base_url=f'{chat_bot_domain}/bot/{realm.string_id}/{handler}',
+            base_url=service_webhook,
             interface=Service.GENERIC,
             token=generate_api_key(),
         )
-    elif bot.is_active is False:
-        do_reactivate_user(bot, acting_user=None)
+    else:
+        if bot.is_active is False:
+            do_reactivate_user(bot, acting_user=None)
+        service = get_service_profile(bot, short_name)
+        update_service(
+            service=service,
+            base_url=service_webhook,
+            interface=Service.GENERIC,
+        )
 
     if default_sending_stream:
         # change default sending stream bot
