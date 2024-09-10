@@ -507,16 +507,14 @@ if PRODUCTION:
 # Prevent JavaScript from reading the CSRF token from cookies.  Our code gets
 # the token from the DOM, which means malicious code could too.  But hiding the
 # cookie will slow down some attackers.
-CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_HTTPONLY = True
 CSRF_FAILURE_VIEW = "zerver.middleware.csrf_failure"
-X_FRAME_OPTIONS = 'ALLOW-FROM localhost:8080'
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8080',
     'https://*.collab.vietis.com.vn:9991',
     'https://*.chat-beta.kollabridge.com',
     'https://*.chat-dev.kollabridge.com',
 ]
-CSRF_COOKIE_SAMESITE = None
 
 # Avoid a deprecation message in the Firefox console
 LANGUAGE_COOKIE_SAMESITE: Final = "Lax"

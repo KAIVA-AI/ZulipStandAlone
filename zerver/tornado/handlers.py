@@ -7,6 +7,7 @@ from urllib.parse import unquote
 import tornado.web
 from asgiref.sync import sync_to_async
 from django import http
+from django.conf import settings
 from django.core import signals
 from django.core.handlers import base
 from django.core.handlers.wsgi import WSGIRequest, get_script_name
@@ -90,22 +91,20 @@ def finish_handler(handler_id: int, event_queue_id: str, contents: list[dict[str
 
 class AsyncDjangoHandler(tornado.web.RequestHandler):
     handler_id: int
+    def set_default_headers(self):
+        if settings.DEBUG:
+            self.set_header('Access-Control-Allow-Headers', 'Authorization')
+            self.set_header('Access-Control-Allow-Methods', 'GET, OPTIONS, POST, PATCH, PUT, DELETE')
+            self.set_header('Access-Control-Allow-Origin', '*')
 
-    SUPPORTED_METHODS: Collection[str] = {"GET", "POST", "DELETE"}  # type: ignore[assignment]  # https://github.com/tornadoweb/tornado/pull/3354
+    def options(self):
+        self.set_status(204)
+        self.finish()
+
+    SUPPORTED_METHODS: Collection[str] = {"GET", "OPTIONS", "POST", "PATCH", "PUT", "DELETE"}  # type: ignore[assignment]  # https://github.com/tornadoweb/tornado/pull/3354
 
     @override
     def initialize(self, django_handler: base.BaseHandler) -> None:
-        def set_default_headers(self):
-            self.set_header('Access-Control-Allow-Headers', '*')
-            self.set_header('Access-Control-Max-Age', 1000)
-            self.set_header('Content-type', 'application/json')
-            self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, PATCH, PUT')
-            self.set_header('Access-Control-Allow-Headers',
-                            'Content-Type, Access-Control-Allow-Origin, Access-Control-Allow-Headers, X-Requested-By, Access-Control-Allow-Methods, Authorization')
-
-        def options(self):
-            self.set_status(204)
-            self.finish()
         self.django_handler = django_handler
 
         # Prevent Tornado from automatically finishing the request

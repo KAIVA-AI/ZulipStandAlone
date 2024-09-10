@@ -546,19 +546,15 @@ def remote_user_sso(
 
 @has_request_variables
 def get_email_and_realm_from_jwt_authentication_request(
-    request: HttpRequest, json_web_token: str, agent_name: str
+    request: HttpRequest, json_web_token: str,
 ) -> tuple[str, Realm]:
     realm = get_realm_from_request(request)
     if realm is None:
         raise InvalidSubdomainError
 
     try:
-        if agent_name is None:
-            key = settings.JWT_AUTH_KEYS[realm.subdomain]["key"]
-            algorithms = settings.JWT_AUTH_KEYS[realm.subdomain]["algorithms"]
-        else:
-            key = settings.JWT_AUTH_KEYS[agent_name]["key"]
-            algorithms = settings.JWT_AUTH_KEYS[agent_name]["algorithms"]
+        key = settings.JWT_AUTH_KEYS[realm.subdomain]["key"]
+        algorithms = settings.JWT_AUTH_KEYS[realm.subdomain]["algorithms"]
     except KeyError:
         raise JsonableError(_("JWT authentication is not enabled for this organization"))
 
@@ -582,8 +578,8 @@ def get_email_and_realm_from_jwt_authentication_request(
 @require_post
 @log_view_func
 @has_request_variables
-def remote_user_jwt(request: HttpRequest, token: str = REQ(default=""), agent_name: str = REQ(default=None)) -> HttpResponse:
-    email, realm = get_email_and_realm_from_jwt_authentication_request(request, token, agent_name)
+def remote_user_jwt(request: HttpRequest, token: str = REQ(default="")) -> HttpResponse:
+    email, realm = get_email_and_realm_from_jwt_authentication_request(request, token)
     user_profile = authenticate(username=email, realm=realm, use_dummy_backend=True)
     if user_profile is None:
         result = ExternalAuthResult(
@@ -602,10 +598,9 @@ def remote_user_api_key(
     request: HttpRequest,
     /,
     token: str = REQ(default=""),
-    agent_name: str = REQ(default=""),
     **kwargs: Any,
 ) -> HttpResponse:
-    email, realm = get_email_and_realm_from_jwt_authentication_request(request, token, agent_name)
+    email, realm = get_email_and_realm_from_jwt_authentication_request(request, token)
     user_profile = authenticate(username=email, realm=realm, use_dummy_backend=True)
     if user_profile is None:
         result = ExternalAuthResult(
@@ -1033,9 +1028,8 @@ def jwt_fetch_api_key(
     request: HttpRequest,
     include_profile: bool = REQ(default=False, json_validator=check_bool),
     token: str = REQ(default=""),
-    agent_name: str = REQ(default=None)
 ) -> HttpResponse:
-    remote_email, realm = get_email_and_realm_from_jwt_authentication_request(request, token, agent_name)
+    remote_email, realm = get_email_and_realm_from_jwt_authentication_request(request, token)
 
     return_data: dict[str, bool] = {}
 

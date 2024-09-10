@@ -510,16 +510,10 @@ TERMS_OF_SERVICE_MESSAGE: str | None = None
 
 # Configuration for JWT auth (sign in and API key fetch)
 JWT_AUTH_KEYS: dict[str, JwtAuthKey] = {
-    "affine": {
-        "key": get_secret("affine_jwt_auth_key"),
-        # Algorithm with which the JWT token are signed.
-        "algorithms": ["ES256"],
+    "default": {
+       "key": get_secret("jwt_secret", ""),
+       "algorithms": ["HS256"],
     },
-    "vcollab": {
-       "key": get_secret("vcollab_jwt_auth_key"),
-        # Algorithm with which the JWT token are signed.
-       "algorithms": get_secret("vcollab_jwt_algorithm"),
-    }
 }
 
 # https://docs.djangoproject.com/en/5.0/ref/settings/#std:setting-SERVER_EMAIL

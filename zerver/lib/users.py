@@ -190,6 +190,16 @@ def add_service(
     )
 
 
+def update_service(
+    service: Service,
+    base_url: str,
+    interface: int,
+) -> None:
+    service.base_url = base_url
+    service.interface = interface
+    service.save(update_fields=["base_url", "interface"])
+
+
 def check_bot_creation_policy(user_profile: UserProfile, bot_type: int) -> None:
     # Realm administrators can always add bot
     if user_profile.is_realm_admin:
