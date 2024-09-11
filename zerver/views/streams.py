@@ -11,6 +11,8 @@ from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 from pydantic import BaseModel, Field, Json, NonNegativeInt, StringConstraints, model_validator
+
+from zerver.lib.chat_bot import update_job_external_id
 from zerver.views.assistant import update_assistant_job_by_external_id
 from django.db.models import (Min)
 
@@ -951,7 +953,10 @@ def migrate_topic(
     )
     # update external_id to new topic
     if external_id:
-        assistant_job = update_assistant_job_by_external_id(external_id, to_topic)
+        if settings.AGENT_LEGACY:
+            update_assistant_job_by_external_id(external_id, to_topic)
+        else:
+            update_job_external_id(external_id, to_topic)
 
     return json_success(request, data=dict(topic=to_topic,total_msg=len(message_migrated)))
 

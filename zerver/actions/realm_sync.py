@@ -144,20 +144,62 @@ def do_sync_realm_and_users(
 
 
     list_bot_initial = [
-        {"realm": realm, "short_name": "kolla-ai", 'full_name': "Kolla-AI", "handler": "chatgpt",
-                      "evaluation_default": []},
-        {"realm": realm, "short_name": "kolla-comtor", 'full_name': 'Kolla-Comtor', "handler": "comtor",
-                      "evaluation_default": []},
-        {"realm": realm, "short_name": "kolla-tot", 'full_name': "Kolla-ToT", "handler": "tot",
-                      "evaluation_default": []},
-        {"realm": realm, "short_name": "kolla-a-prj", 'full_name': "Kolla-GPT", "handler": "a-prj",
-                      "evaluation_default": []},
-        {"realm": realm, "short_name": "kolla-a-req", 'full_name': "Kolla-Req", "handler": "a-req",
-                      "evaluation_default": DEFINE_EVALUATION_REQ},
-        {"realm": realm, "short_name": "kolla-a-tc", 'full_name': "Kolla-Testcase", "handler": "a-tc",
-                      "evaluation_default": DEFINE_EVALUATION_TC},
-        {"realm": realm, "short_name": "kolla-a-issue", 'full_name': "Kolla-Issue", "handler": "a-issue",
-                      "evaluation_default": DEFINE_EVALUATION_ISSUE}
+        {
+            "realm": realm,
+            "short_name": "kolla-ai",
+            'full_name': "Kolla-AI",
+            "handler": "chatgpt",
+            "evaluation_default": [],
+            'legacy': True,
+        },
+        {
+            "realm": realm,
+            "short_name": "kolla-comtor",
+            'full_name': 'Kolla-Comtor',
+            "handler": "comtor",
+            "evaluation_default": [],
+            'legacy': True,
+        },
+        {
+            "realm": realm,
+            "short_name": "kolla-tot",
+            'full_name': "Kolla-ToT",
+            "handler": "tot",
+            "evaluation_default": [],
+            'legacy': True,
+        },
+        {
+            "realm": realm,
+            "short_name": "kolla-a-prj",
+            'full_name': "Kolla-GPT",
+            "handler": "a-prj",
+            "evaluation_default": [],
+            'legacy': True,
+        },
+        {
+            "realm": realm,
+            "short_name": "kolla-a-req",
+            'full_name': "Kolla-Req",
+            "handler": "a-req",
+            "evaluation_default": DEFINE_EVALUATION_REQ,
+            'legacy': False,
+        },
+        {
+            "realm": realm,
+            "short_name": "kolla-a-tc",
+            'full_name': "Kolla-Testcase",
+            "handler": "a-tc",
+            "evaluation_default": DEFINE_EVALUATION_TC,
+            'legacy': False,
+        },
+        {
+            "realm": realm,
+            "short_name": "kolla-a-issue",
+            'full_name': "Kolla-Issue",
+            "handler": "a-issue",
+            "evaluation_default": DEFINE_EVALUATION_ISSUE,
+            'legacy': False,
+        }
     ]
     initial_service_external_realm(bot_list=list_bot_initial, realm=realm, user_profile=user_profile)
 
@@ -184,15 +226,28 @@ def do_sync_realm_and_users(
         defaults={'value': '1'}
     )
 
-def sync_bot(realm: Realm, short_name: str, full_name: str, handler: str, default_sending_stream: Optional[Stream] = None):
+def sync_bot(
+    realm: Realm,
+    short_name: str,
+    full_name: str,
+    handler: str,
+    default_sending_stream: Optional[Stream] = None,
+    legacy: bool = False,
+):
     email = Address(username=short_name, domain=realm.get_bot_domain()).addr_spec
     avatar_source = UserProfile.AVATAR_FROM_GRAVATAR
     bot = UserProfile.objects.filter(
         realm_id=realm.id,
         full_name=full_name.strip(),
     ).first()
-    chat_bot_domain = get_secret("chat_bot_domain")
-    service_webhook=f'{chat_bot_domain}/bot/{realm.string_id}/{handler}'
+    if legacy:
+        chat_bot_domain = f'{settings.ENDPOINT_CHAT_BOT}:{settings.PORT_CHAT_BOT_LEGACY}'
+    else:
+        chat_bot_domain = f'{settings.ENDPOINT_CHAT_BOT}:{settings.PORT_CHAT_BOT}'
+    realm_string = realm.string_id
+    if not realm_string:
+        realm_string = 'zulip'
+    service_webhook=f'{chat_bot_domain}/bot/{realm_string}/{handler}'
     if bot is None:
         fake_owner = UserProfile.objects.filter(
             realm_id=realm.id,
@@ -210,10 +265,6 @@ def sync_bot(realm: Realm, short_name: str, full_name: str, handler: str, defaul
             acting_user=None,
             default_sending_stream=default_sending_stream
         )
-        # TODO check service exist and create
-        realmStringId = realm.string_id
-        if realmStringId is None or realmStringId == '':
-            realmStringId = 'zulip'
         add_service(
             name=short_name,
             user_profile=bot,
