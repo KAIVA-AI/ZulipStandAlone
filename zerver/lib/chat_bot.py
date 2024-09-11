@@ -30,10 +30,10 @@ def bot_translate_content(content, language):
     }
     response = __api_chat_bot("bot/translate", payload, True)
     result = response.get("result")
-    if not result.get("status"):
+    if result is None or not result.get("status"):
         return None
-    translated_content = result['context']
-    return translated_content
+
+    return result['context']
 
 
 def update_job_external_id(
