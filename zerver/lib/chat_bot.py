@@ -22,6 +22,20 @@ def __api_chat_bot(
     except (Exception,):
         return None
 
+
+def bot_translate_content(content, language):
+    payload = {
+        "message": content,
+        "language": language,
+    }
+    response = __api_chat_bot("bot/translate", payload, True)
+    result = response.get("result")
+    if not result.get("status"):
+        return None
+    translated_content = result['context']
+    return translated_content
+
+
 def update_job_external_id(
     external_id: str,
     new_external_id: str,
