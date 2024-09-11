@@ -8,10 +8,10 @@ from django.conf import settings
 from zerver.lib.markdown import do_convert_msg_language
 from zerver.lib.mention import MentionBackend, MentionData
 from zerver.lib.message_cache import get_msg_language
-CHAT_BOT_URL = settings.ENDPOINT_CHAT_BOT
+CHAT_BOT_URL = f'{settings.ENDPOINT_CHAT_BOT}:{settings.PORT_CHAT_BOT_LEGACY}'
 
 def api_chat_bot(path, language, content):
-    url = f"{CHAT_BOT_URL}{path}"
+    url = f"{CHAT_BOT_URL}/{path}"
     payload = {
         "language": language,
         "message": content

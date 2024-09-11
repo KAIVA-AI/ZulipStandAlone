@@ -96,6 +96,10 @@ SERVER_GENERATION = int(time.time())
 # Key to authenticate this server to zulip.org for push notifications, etc.
 ZULIP_ORG_KEY = get_secret("zulip_org_key")
 ZULIP_ORG_ID = get_secret("zulip_org_id")
+AGENT_LEGACY = get_secret("agent_legacy", '0') == '1'
+ENDPOINT_CHAT_BOT = get_secret("endpoint_chat_bot", '')
+PORT_CHAT_BOT_LEGACY = int(get_secret("port_chat_bot_legacy", '3001'))
+PORT_CHAT_BOT = int(get_secret("port_chat_bot", '9876'))
 
 
 service_name_to_required_upload_level = {
