@@ -69,11 +69,7 @@ scripts/setup/install --certbot --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
 # add openai, replicate key
 
 # update code
-sudo su zulip -c 'git -C /home/zulip/deployments/current pull'
-# pip3 install --force-reinstall --require-hashes -r pip.txt
-# pip3 install --use-deprecated=legacy-resolver --no-deps --require-hashes -r requirements/prod.txt
-sudo su zulip -c '/home/zulip/deployments/current/tools/update-prod-static'
-sudo su zulip -c '/home/zulip/deployments/current/scripts/restart-server'
+sudo su -c /home/zulip/deployments/current/deploy/deploy.sh
 ```
 
 ## Upgrade zulip 7.5 --> 9.0
