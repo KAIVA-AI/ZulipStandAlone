@@ -4,7 +4,7 @@
 ## Local
 ```sh
 # zproject/dev-secrets.conf
-# jwt_secret = zrmy9qzc4dazcrhalnvqp5t0jcnhvnou6j8zsakfl6ci0uhz69
+# jwt_secret = cht7oFjnODJgzSGFtEbBa9166onsvqEZTYROdrUvKaQhF7VeJs
 # agent_legacy = '0'
 # endpoint_chat_bot = http://10.1.35.130
 # port_chat_bot_legacy = 3001
