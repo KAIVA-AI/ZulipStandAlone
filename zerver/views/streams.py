@@ -12,6 +12,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import override as override_language
 from pydantic import BaseModel, Field, Json, NonNegativeInt, StringConstraints, model_validator
 
+from zerver.actions.message_edit import check_update_message, do_update_message
 from zerver.lib.chat_bot import update_job_external_id
 from zerver.views.assistant import update_assistant_job_by_external_id
 from django.db.models import (Min)
@@ -928,28 +929,22 @@ def migrate_topic(
             return json_response(res_type='error', msg=f"Stream {to_stream} doesn't exist", status=404)
     first_message_id_from_topic = Message.objects.filter(recipient=stream.recipient_id,
                                                         subject=from_topic).values('subject').annotate(first_id=Min('id'))
-    timestamp = timezone_now()
-
-    edit_history_event: EditHistoryEvent = {
-        "user_id": user_profile.id,
-        "timestamp": datetime_to_timestamp(timestamp),
-        "prev_topic": from_topic,
-        "topic": to_topic,
-        "prev_stream": to_stream_id,
-        "stream": stream_id,
-    }
 
     # do migrate all message to new topic
-    message_migrated = update_messages_for_topic_edit(
-        acting_user=user_profile,
-        edited_message=Message.objects.get(id=first_message_id_from_topic[0]['first_id']),
-        propagate_mode='change_this_and_following',
-        orig_topic_name=from_topic,
-        topic_name=to_topic,
+    editing_message = Message.objects.get(id=first_message_id_from_topic[0]['first_id'])
+    number_changed = do_update_message(
+        user_profile,
+        target_message=editing_message,
         new_stream=to_stream,
-        old_stream=stream,
-        edit_history_event=edit_history_event,
-        last_edit_time=timestamp,
+        topic_name=to_topic,
+        propagate_mode='change_all',
+        send_notification_to_old_thread=False,
+        send_notification_to_new_thread=False,
+        content=None,
+        language=None,
+        rendering_result=None,
+        prior_mention_user_ids=set(),
+        mention_data=None,
     )
     # update external_id to new topic
     if external_id:
@@ -958,7 +953,7 @@ def migrate_topic(
         else:
             update_job_external_id(external_id, to_topic)
 
-    return json_success(request, data=dict(topic=to_topic,total_msg=len(message_migrated)))
+    return json_success(request, data=dict(topic=to_topic,total_msg=number_changed))
 
 
 @require_realm_admin

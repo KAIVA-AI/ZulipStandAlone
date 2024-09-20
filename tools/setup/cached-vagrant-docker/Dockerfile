@@ -2,6 +2,11 @@
 # set IS_WINDOWS true or IS_MACOS true in ~/.zulip-vagrant-config
 # vagrant up --provider=docker --provision
 # after provision, change postgresql setting
+# /etc/postgresql/14/main/pg_hba.conf
+# host    all             all             0.0.0.0/0               trust
+# /etc/postgresql/14/main/postgresql.conf
+# listen_addresses = '*'
+# service postgresql restart
 # run below to create a new image
 # docker ps
 # export CONTAINERID=

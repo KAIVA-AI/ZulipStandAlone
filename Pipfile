@@ -9,6 +9,7 @@ asgiref = "<3.8.0"
 typing-extensions = "*"
 celery = "*"
 requests = {extras = ["security"], version = "*"}
+psycopg2-binary = "*"
 
 [dev-packages]
 
