@@ -142,65 +142,33 @@ def do_sync_realm_and_users(
             user_profile = UserProfile.objects.filter(id=sync_member["id"]).first()
             do_change_user_role(user_profile, sync_member["role"], acting_user=None)
 
-
     list_bot_initial = [
         {
             "realm": realm,
-            "short_name": "kolla-ai",
-            'full_name': "Kolla-AI",
+            "short_name": "vietis-ai",
+            'full_name': "VietIS-AI",
             "handler": "chatgpt",
             "evaluation_default": [],
             'legacy': True,
         },
         {
             "realm": realm,
-            "short_name": "kolla-comtor",
-            'full_name': 'Kolla-Comtor',
+            "short_name": "vietis-comtor",
+            'full_name': 'VietIS-Comtor',
             "handler": "comtor",
             "evaluation_default": [],
             'legacy': True,
         },
         {
             "realm": realm,
-            "short_name": "kolla-tot",
-            'full_name': "Kolla-ToT",
-            "handler": "tot",
+            "short_name": "vietis-a-coding",
+            'full_name': "VietIS-Coding",
+            "handler": "a-coding",
             "evaluation_default": [],
-            'legacy': True,
-        },
-        {
-            "realm": realm,
-            "short_name": "kolla-a-prj",
-            'full_name': "Kolla-GPT",
-            "handler": "a-prj",
-            "evaluation_default": [],
-            'legacy': True,
-        },
-        {
-            "realm": realm,
-            "short_name": "kolla-a-req",
-            'full_name': "Kolla-Req",
-            "handler": "a-req",
-            "evaluation_default": DEFINE_EVALUATION_REQ,
-            'legacy': False,
-        },
-        {
-            "realm": realm,
-            "short_name": "kolla-a-tc",
-            'full_name': "Kolla-Testcase",
-            "handler": "a-tc",
-            "evaluation_default": DEFINE_EVALUATION_TC,
-            'legacy': False,
-        },
-        {
-            "realm": realm,
-            "short_name": "kolla-a-issue",
-            'full_name': "Kolla-Issue",
-            "handler": "a-issue",
-            "evaluation_default": DEFINE_EVALUATION_ISSUE,
             'legacy': False,
         }
     ]
+
     initial_service_external_realm(bot_list=list_bot_initial, realm=realm, user_profile=user_profile)
 
     # sync_stream(realm, 'Draft TestCase')
@@ -411,18 +379,13 @@ def add_evaluation_bot_userprofile(user_profile: UserProfile, tags: list) -> Eva
     return True
 
 def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: UserProfile):
-    # add initial external stream
-    external_stream = {
-        Stream.STREAM_ASSISTANT: ['Requirement','TestCase','Issue'],
-        Stream.STREAM_DRAFT: ['Draft Requirement','Draft TestCase','Draft Issue']
-    }
     # remove public stream which was created by testing AI channel
     remove_subscription_old_stream(realm=realm, stream_dict=[{"name": "Private AI Chat"}], user_profile=user_profile)
-    for _type, stream_list in external_stream.items():
-        streams_as_dict: list[StreamDict] = [
-            {"name": stream_name.strip(), "is_web_public": False} for stream_name in stream_list
-        ]
-        sync_streams(realm=realm, streams_raw=streams_as_dict, external_stream_type=_type)
+    stream_list = ['Coding-Backend','Coding-Frontend','Coding-DB']
+    streams_as_dict: list[StreamDict] = [
+        {"name": stream_name.strip(), "is_web_public": True} for stream_name in stream_list
+    ]
+    sync_streams(realm=realm, streams_raw=streams_as_dict)
 
     for bot in bot_list:
         tags = bot.pop('evaluation_default')
