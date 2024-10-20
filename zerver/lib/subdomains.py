@@ -26,7 +26,11 @@ def get_subdomain(request: HttpRequest) -> str:
 
 
 def get_subdomain_from_hostname(host: str) -> str:
-    m = re.search(rf"\.{settings.EXTERNAL_HOST}(:\d+)?$", host)
+    external_host = settings.EXTERNAL_HOST
+    # if external host ends with a port number, remove it
+    if external_host.endswith(":9981"):
+        external_host = external_host.split(":")[0]
+    m = re.search(rf"\.{external_host}(:\d+)?$", host)
     if m:
         subdomain = host[: m.start()]
         if subdomain in settings.ROOT_SUBDOMAIN_ALIASES:
