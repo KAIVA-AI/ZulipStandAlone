@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional
 from django.http import HttpRequest, HttpResponse
 from django.utils.timezone import now as timezone_now
 from zerver.lib.request import REQ, has_request_variables
@@ -16,6 +16,7 @@ from zerver.models import (
     AssistantJobChatHistory,
     UserProfile,
 )
+from zerver.lib.chat_bot import add_file_to_job_input
 
 
 def update_assistant_job_by_external_id(external_id, new_external_id):
@@ -241,5 +242,22 @@ def update_assistant_job_input(
                 "created_at": current_time,
             }
             AssistantJobInput.objects.update_or_create(job=job, input_name=input["input_name"], defaults=data)
+
+    return json_success(request)
+
+
+@has_request_variables
+def add_file(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    external_id: str = REQ(),
+    path: str = REQ(),
+    content: str = REQ(),
+) -> HttpResponse:
+    add_file_to_job_input(
+        external_id=external_id,
+        path=path,
+        content=content,
+    )
 
     return json_success(request)

@@ -7,6 +7,7 @@ from zerver.views.assistant import (
     update_assistant_job,
     add_assistant_job_chat_history,
     update_assistant_job_input,
+    add_file,
 )
 
 urlpatterns = [
@@ -16,4 +17,5 @@ urlpatterns = [
     rest_path("assistant/update-job", POST=update_assistant_job),
     rest_path("assistant/add-chat-history", POST=add_assistant_job_chat_history),
     rest_path("assistant/update-assistant-input", POST=update_assistant_job_input),
+    rest_path("assistant/add-file", POST=add_file),
 ]
