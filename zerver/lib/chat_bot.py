@@ -72,4 +72,4 @@ def get_job_input(
     payload = {
         "external_id": external_id,
     }
-    return __api_chat_bot('assistant/add-file', payload)
+    return __api_chat_bot('assistant/get-file-input', payload)
