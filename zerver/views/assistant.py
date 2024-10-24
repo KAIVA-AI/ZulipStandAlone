@@ -277,8 +277,8 @@ def get_file_input(
     user_profile: UserProfile,
     external_id: str = REQ(),
 ) -> HttpResponse:
-    get_job_input(
+    result = get_job_input(
         external_id=external_id,
     )
 
-    return json_success(request)
+    return json_success(request, result)
