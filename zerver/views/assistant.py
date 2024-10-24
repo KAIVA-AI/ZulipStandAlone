@@ -251,10 +251,10 @@ def add_file(
     request: HttpRequest,
     user_profile: UserProfile,
     external_id: str = REQ(),
-    name: str = Optional[str],
+    name: Optional[str] = REQ(default=None),
     path: str = REQ(),
-    start: str = Optional[str],
-    end: str = Optional[str],
+    start: Optional[str] = REQ(default=None),
+    end: Optional[str] = REQ(default=None),
     content: str = REQ(),
 ) -> HttpResponse:
     add_file_to_job_input(
