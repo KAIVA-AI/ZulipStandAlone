@@ -49,12 +49,18 @@ def update_job_external_id(
 
 def add_file_to_job_input(
     external_id: str,
+    name: str,
     path: str,
+    start: str,
+    end: str,
     content: str,
 ):
     payload = {
         "external_id": external_id,
+        "name": name,
         "path": path,
+        "start": start,
+        "end": end,
         "content": content,
     }
     return __api_chat_bot('assistant/add-file', payload)
