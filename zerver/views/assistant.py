@@ -16,7 +16,10 @@ from zerver.models import (
     AssistantJobChatHistory,
     UserProfile,
 )
-from zerver.lib.chat_bot import add_file_to_job_input
+from zerver.lib.chat_bot import (
+    add_file_to_job_input,
+    get_job_input,
+)
 
 
 def update_assistant_job_by_external_id(external_id, new_external_id):
@@ -264,6 +267,18 @@ def add_file(
         start=start,
         end=end,
         content=content,
+    )
+
+    return json_success(request)
+
+@has_request_variables
+def get_file_input(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    external_id: str = REQ(),
+) -> HttpResponse:
+    get_job_input(
+        external_id=external_id,
     )
 
     return json_success(request)

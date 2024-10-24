@@ -64,3 +64,12 @@ def add_file_to_job_input(
         "content": content,
     }
     return __api_chat_bot('assistant/add-file', payload)
+
+
+def get_job_input(
+    external_id: str,
+):
+    payload = {
+        "external_id": external_id,
+    }
+    return __api_chat_bot('assistant/add-file', payload)
