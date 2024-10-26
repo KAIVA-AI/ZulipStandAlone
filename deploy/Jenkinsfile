@@ -9,7 +9,6 @@ pipeline {
         beforeOptions true
         anyOf {
           environment name: 'gitlabBranch', value: 'stg'
-          environment name: 'gitlabBranch', value: 'feature/refactor_code'
         }
       }
       steps {
