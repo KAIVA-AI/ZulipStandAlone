@@ -1,5 +1,5 @@
 pipeline {
-  agent any
+  agent { label 'v-collab-stg' }
   options {
     timestamps()
   }
@@ -12,7 +12,6 @@ pipeline {
           environment name: 'gitlabBranch', value: 'feature/refactor_code'
         }
       }
-      agent { label 'v-collab-stg' }
       steps {
         gitlabCommitStatus('Deloy Stg') {
           sh 'sudo -u zulip /home/zulip/deployments/current/deploy/deploy.sh'
