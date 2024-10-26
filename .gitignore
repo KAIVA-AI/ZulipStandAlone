@@ -67,7 +67,6 @@ zulip-git-version
 # (Ideally these should be in everyone's respective personal gitignore files.)
 *~
 *.sw[po]
-.idea
 .kdev4
 zulip.kdev4
 .kateproject.d/

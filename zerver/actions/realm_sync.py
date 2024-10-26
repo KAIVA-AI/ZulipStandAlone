@@ -383,7 +383,7 @@ def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: U
     remove_subscription_old_stream(realm=realm, stream_dict=[{"name": "Private AI Chat"}], user_profile=user_profile)
     stream_list = ['Coding-Backend','Coding-Frontend','Coding-DB']
     streams_as_dict: list[StreamDict] = [
-        {"name": stream_name.strip(), "is_web_public": True} for stream_name in stream_list
+        {"name": stream_name.strip(), "is_web_public": False} for stream_name in stream_list
     ]
     sync_streams(realm=realm, streams_raw=streams_as_dict)
 
