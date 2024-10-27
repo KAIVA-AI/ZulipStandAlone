@@ -310,7 +310,7 @@ def sync_streams(realm: Realm, streams_raw: Collection[StreamDict], external_str
         is_active=True
     ).all()
     bulk_add_subscriptions(
-        acting_user.realm, created_stream, all_user, acting_user=None
+        acting_user.realm, streams, all_user, acting_user=None
     )
 
     return
