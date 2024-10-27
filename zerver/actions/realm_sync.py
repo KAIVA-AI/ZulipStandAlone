@@ -299,8 +299,7 @@ def sync_streams(realm: Realm, streams_raw: Collection[StreamDict], external_str
     streams += created_stream
     # update stream external_stream_type
     for stream in streams:
-        if stream.external_stream_type == external_stream_type:
-            continue
+        stream.is_default_stream = True
         stream.external_stream_type = external_stream_type
         stream.save()
 
