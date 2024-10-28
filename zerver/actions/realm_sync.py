@@ -405,7 +405,7 @@ def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: U
     # remove public stream which was created by testing AI channel
     remove_subscription_old_stream(realm=realm, stream_dict=[{"name": "Private AI Chat"}],
                                    user_profile=user_profile)
-    stream_list = ['Coding-Backend', 'Coding-Frontend', 'Coding-DB']
+    stream_list = ['AI Coding']
     streams_as_dict: list[StreamDict] = [
         {"name": stream_name.strip(), "is_web_public": False} for stream_name in stream_list
     ]
