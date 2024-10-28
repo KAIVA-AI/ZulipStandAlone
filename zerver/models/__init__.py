@@ -71,6 +71,8 @@ from zerver.models.users import UserBaseSettings as UserBaseSettings
 from zerver.models.users import UserProfile as UserProfile
 
 
+from zerver.models.realm_metadata import RealmMetadata as RealmMetadata
+
 from zerver.models.system_setting import SystemSetting as SystemSetting
 from zerver.models.system_setting import SystemSettingKey as SystemSettingKey
 

@@ -1,13 +1,31 @@
+import copy
+import os
+import random
+import string
+from collections.abc import Collection
 from email.headerregistry import Address
+from enum import Enum
+from typing import Any, Dict, Optional, List
+
+from django.conf import settings
+
+from zerver.actions.create_realm import do_create_realm
+from zerver.actions.create_user import do_create_user, do_reactivate_user
+from zerver.actions.realm_metadata import delete_realm_metadata, set_realm_metadata
+from zerver.actions.realm_settings import update_realm_description_by_id
 from zerver.actions.streams import bulk_add_subscriptions
+from zerver.actions.streams import bulk_remove_subscriptions, do_deactivate_stream
+from zerver.actions.user_settings import do_change_avatar_fields
 from zerver.actions.users import (
     do_deactivate_user,
     do_change_user_role
 )
-from typing import Any, Dict, Literal, Optional, Tuple, Union, List, Sequence
-from enum import Enum
+from zerver.lib.cache import realm_user_dict_fields
+from zerver.lib.streams import StreamDict, list_to_streams
+from zerver.lib.upload import upload_avatar_image
 from zerver.lib.users import add_service, update_service
 from zerver.lib.utils import generate_api_key
+from zerver.models import Evaluation
 from zerver.models import (
     Realm,
     UserProfile,
@@ -18,28 +36,9 @@ from zerver.models import (
 )
 from zerver.models.bots import get_service_profile
 from zerver.models.groups import SystemGroups
-from zerver.actions.realm_settings import update_realm_description_by_id
-from zerver.actions.create_user import do_create_user, do_reactivate_user
-from zerver.actions.create_realm import do_create_realm
-import copy
-from zerver.models.evaluation import (
-    DEFINE_EVALUATION_REQ,
-    DEFINE_EVALUATION_ISSUE,
-    DEFINE_EVALUATION_TC,
-    Evaluation
-)
-
 from zerver.models.system_setting import SystemSetting
-from zerver.lib.cache import realm_user_dict_fields
-from zproject.config import get_secret
-import random, string
-from zerver.lib.streams import StreamDict, list_to_streams
-from collections.abc import Collection
-from zerver.actions.streams import bulk_remove_subscriptions, do_deactivate_stream
-from django.conf import settings
-from zerver.lib.upload import upload_avatar_image
-from zerver.actions.user_settings import do_change_avatar_fields
-import os
+
+
 class ACTION(Enum):
     CREATE = "create"
     DEACTIVATE = "deactivate"
@@ -48,16 +47,19 @@ class ACTION(Enum):
 
 
 def do_sync_realm_and_users(
-    user_profile: UserProfile, ProjectId: str = '', ProjectCode: str = '', MemberList: Optional[List[Dict[str, Any]]] = [],
-    ProjectMetaData: Optional[List[Dict[str, Any]]] = []
+    user_profile: UserProfile,
+    ProjectId: str = '',
+    ProjectCode: str = '',
+    MemberList: Optional[List[Dict[str, Any]]] = [],
+    ProjectMetaData: Optional[List[Dict[str, Any]]] = [],
 ) -> None:
     mapping_role_from_v_collab = {
         "PM": UserProfile.ROLE_REALM_OWNER,
         "Member": UserProfile.ROLE_MEMBER,
     }
     system_realm = [
-        'zulipinternal', # 1
-        'zulip', # 2
+        'zulipinternal',  # 1
+        'zulip',  # 2
         'pjd',
         'ide-ext',
     ]
@@ -76,14 +78,20 @@ def do_sync_realm_and_users(
 
     realm = Realm.objects.filter(string_id=string_id).first()
     description = ""
+    metadata_list = [{
+        'key': metadata["MetaItem"],
+        'value': metadata["MetaValue"]
+    } for metadata in ProjectMetaData]
+    delete_realm_metadata(realm)
+    set_realm_metadata(realm, metadata_list)
     for metadata in ProjectMetaData:
-        description += "{} : {}, ".format(metadata["MetaItem"],metadata["MetaValue"])
+        description += "{} : {}, ".format(metadata["MetaItem"], metadata["MetaValue"])
     if realm is None:
         realm = do_create_realm(
             string_id,
             name,
             org_type=10,
-            description=description
+            description=description,
         )
     else:
         if realm.description != description:
@@ -101,14 +109,16 @@ def do_sync_realm_and_users(
         if "actions" not in new_member:
             new_member["actions"] = []
         new_member["role"] = mapping_role_from_v_collab[new_member["role"]]
-        if new_member["email"] in old_member_dict and old_member_dict[new_member["email"]]["realm_id"] != realm.id:
+        if new_member["email"] in old_member_dict and old_member_dict[new_member["email"]][
+            "realm_id"] != realm.id:
             # print('new member already in realm but in another realm????') # TODO unused
             new_member["email"] = new_member["email"]
             new_member["actions"].append(ACTION.CREATE)
         if new_member["email"] not in old_member_dict:
             new_member["email"] = new_member["email"]
             new_member["actions"].append(ACTION.CREATE)
-        if new_member["email"] in old_member_dict and new_member["role"] != old_member_dict[new_member["email"]]["role"]:
+        if new_member["email"] in old_member_dict and new_member["role"] != \
+            old_member_dict[new_member["email"]]["role"]:
             new_member["actions"].append(ACTION.CHANGE_ROLE)
             new_member["id"] = old_member_dict[new_member["email"]]["id"]
         if len(new_member["actions"]) > 0:
@@ -203,6 +213,7 @@ def do_sync_realm_and_users(
         defaults={'value': '1'}
     )
 
+
 def sync_bot(
     realm: Realm,
     short_name: str,
@@ -224,12 +235,12 @@ def sync_bot(
     realm_string = realm.string_id
     if not realm_string:
         realm_string = 'zulip'
-    service_webhook=f'{chat_bot_domain}/bot/{realm_string}/{handler}'
+    service_webhook = f'{chat_bot_domain}/bot/{realm_string}/{handler}'
     if bot is None:
         fake_owner = UserProfile.objects.filter(
             realm_id=realm.id,
             is_bot=False,
-        ).first() # TODO hardcode
+        ).first()  # TODO hardcode
         bot = do_create_user(
             email=email,
             password=None,
@@ -267,7 +278,9 @@ def sync_bot(
     bot.save()
     return bot
 
-def remove_subscription_old_stream(realm: Realm, stream_dict: Collection[StreamDict], user_profile: UserProfile):
+
+def remove_subscription_old_stream(realm: Realm, stream_dict: Collection[StreamDict],
+                                   user_profile: UserProfile):
     stream_names = [stream.get("name") for stream in stream_dict]
     streams = Stream.objects.filter(name__in=stream_names, realm=realm)
     all_user = UserProfile.objects.filter(
@@ -284,7 +297,6 @@ def remove_subscription_old_stream(realm: Realm, stream_dict: Collection[StreamD
     return removed
 
 
-
 def sync_streams(realm: Realm, streams_raw: Collection[StreamDict], external_stream_type: int = 1):
     streams = []
     # get acting_user who is realm admin
@@ -294,7 +306,8 @@ def sync_streams(realm: Realm, streams_raw: Collection[StreamDict], external_str
 
     if not acting_user:
         acting_user = do_create_user(
-            email=f"admin_{realm.string_id}@vietis.com.vn", # TODO hardcode create admin user to have permission to create streams
+            email=f"admin_{realm.string_id}@vietis.com.vn",
+            # TODO hardcode create admin user to have permission to create streams
             password=''.join(random.choices(string.ascii_uppercase + string.digits, k=16)),
             realm=realm,
             full_name=f"{realm.string_id}_admin",
@@ -303,7 +316,8 @@ def sync_streams(realm: Realm, streams_raw: Collection[StreamDict], external_str
             acting_user=None,
         )
     # pass stream data StreamDict
-    existing_stream, created_stream = list_to_streams(streams_raw=streams_raw, user_profile=acting_user, autocreate=True)
+    existing_stream, created_stream = list_to_streams(streams_raw=streams_raw, user_profile=acting_user,
+                                                      autocreate=True)
     streams += existing_stream
     streams += created_stream
     # update stream external_stream_type
@@ -386,10 +400,12 @@ def add_evaluation_bot_userprofile(user_profile: UserProfile, tags: list) -> Eva
     Evaluation.objects.bulk_create(evaluations)
     return True
 
+
 def initial_service_external_realm(bot_list: List, realm: Realm, user_profile: UserProfile):
     # remove public stream which was created by testing AI channel
-    remove_subscription_old_stream(realm=realm, stream_dict=[{"name": "Private AI Chat"}], user_profile=user_profile)
-    stream_list = ['Coding-Backend','Coding-Frontend','Coding-DB']
+    remove_subscription_old_stream(realm=realm, stream_dict=[{"name": "Private AI Chat"}],
+                                   user_profile=user_profile)
+    stream_list = ['AI Coding']
     streams_as_dict: list[StreamDict] = [
         {"name": stream_name.strip(), "is_web_public": False} for stream_name in stream_list
     ]
