@@ -53,12 +53,21 @@ def do_sync_realm_and_users(
 ) -> None:
     mapping_role_from_v_collab = {
         "PM": UserProfile.ROLE_REALM_OWNER,
-        "Member": UserProfile.ROLE_MEMBER
+        "Member": UserProfile.ROLE_MEMBER,
     }
-    if not ProjectCode:
+    system_realm = [
+        'zulipinternal', # 1
+        'zulip', # 2
+        'pjd',
+        'ide-ext',
+    ]
+    realm_prefix = 'pjd-'
+    if not ProjectId:
         raise AssertionError("ProjectCode is empty")
-    if ProjectCode == 'zulip':
+    if ProjectId in system_realm:
         raise AssertionError("Permission denied")
+    if not ProjectId.startswith(realm_prefix):
+        raise AssertionError("ProjectCode is invalid")
     if len(MemberList) == 0:
         raise AssertionError("MemberList is empty")
     string_id = ProjectId
