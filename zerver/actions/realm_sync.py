@@ -63,13 +63,10 @@ def do_sync_realm_and_users(
         'pjd',
         'ide-ext',
     ]
-    realm_prefix = 'pjd-'
     if not ProjectId:
         raise AssertionError("ProjectCode is empty")
     if ProjectId in system_realm:
         raise AssertionError("Permission denied")
-    if not ProjectId.startswith(realm_prefix):
-        raise AssertionError("ProjectCode is invalid")
     if len(MemberList) == 0:
         raise AssertionError("MemberList is empty")
     string_id = ProjectId
