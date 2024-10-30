@@ -259,6 +259,7 @@ def add_file(
     start: Optional[str] = REQ(default=None),
     end: Optional[str] = REQ(default=None),
     content: str = REQ(),
+    input_type: Optional[str] = REQ(default="coding_context_file"),
 ) -> HttpResponse:
     add_file_to_job_input(
         external_id=external_id,
@@ -267,6 +268,7 @@ def add_file(
         start=start,
         end=end,
         content=content,
+        input_type=input_type,
     )
 
     return json_success(request)
