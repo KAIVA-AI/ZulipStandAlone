@@ -258,7 +258,7 @@ def add_file(
     path: str = REQ(),
     start: Optional[str] = REQ(default=None),
     end: Optional[str] = REQ(default=None),
-    content: str = REQ(),
+    content: Optional[str] = REQ(default=None),
     input_type: Optional[str] = REQ(default="coding_context_file"),
 ) -> HttpResponse:
     add_file_to_job_input(
