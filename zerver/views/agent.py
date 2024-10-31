@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from django.http import HttpRequest, HttpResponse
 from zerver.lib.request import REQ, has_request_variables
 from zerver.lib.response import json_success, json_response
@@ -18,7 +18,7 @@ from zerver.models import (
     Realm,
     SystemSetting,
     SystemSettingKey,
-    UserProfile,
+    UserProfile, Stream,
 )
 import re
 from django.conf import settings
@@ -104,6 +104,7 @@ def get_bot_api_key(
     user_profile: UserProfile,
     realm_string_id: str = REQ(),
     bot_email: str = REQ(),
+    channel_id: Optional[str] = REQ(default=None),
 ) -> HttpResponse:
     realm = Realm.objects.filter(string_id=realm_string_id).first()
     if realm == None:
@@ -122,9 +123,16 @@ def get_bot_api_key(
         openaiFlag = openaiFlagSetting.value == "1"
     if llama2FlagSetting != None:
         llama2Flag = llama2FlagSetting.value == "1"
+    channel_name = ''
+    if channel_id is not None:
+        channel: Stream = Stream.objects.filter(id=channel_id).first()
+        if channel is not None:
+            channel_name = channel.name
     return json_success(request, {
         "api_key": bot.api_key,
         "realm_description": realm.description,
+        'realm_name': realm.name,
+        'channel_name': channel_name,
         "agent_suspended_reason": agentSuspendedReason,
         "openai_flag": openaiFlag,
         "llama2_flag": llama2Flag,
