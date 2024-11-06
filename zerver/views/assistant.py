@@ -19,6 +19,7 @@ from zerver.models import (
 from zerver.lib.chat_bot import (
     add_file_to_job_input,
     get_job_input,
+    get_job_element_input
 )
 
 
@@ -281,6 +282,21 @@ def get_file_input(
 ) -> HttpResponse:
     result = get_job_input(
         external_id=external_id,
+    )
+
+    return json_success(request, result)
+
+
+@has_request_variables
+def get_element_input(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    external_id: str = REQ(),
+    input_type: Optional[str] = REQ(default="html_element"),
+) -> HttpResponse:
+    result = get_job_element_input(
+        external_id=external_id,
+        input_type=input_type
     )
 
     return json_success(request, result)

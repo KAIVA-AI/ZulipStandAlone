@@ -254,7 +254,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
 ]
 
-CORS_ALLOWED_ORIGINS = []
+CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOW_METHODS = (
     "DELETE",
@@ -272,6 +272,7 @@ CORS_ALLOW_HEADERS = (
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+    "User-Agent"
 )
 
 AUTH_USER_MODEL = "zerver.UserProfile"
