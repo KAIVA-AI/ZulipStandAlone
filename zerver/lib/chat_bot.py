@@ -75,3 +75,13 @@ def get_job_input(
         "external_id": external_id,
     }
     return __api_chat_bot('assistant/get-file-input', payload)
+
+def get_job_element_input(
+    external_id: str,
+    input_type: str
+):
+    payload = {
+        "external_id": external_id,
+        "input_type": input_type
+    }
+    return __api_chat_bot('assistant/get-element-input', payload)
