@@ -9,6 +9,7 @@ class SystemSettingKey(Enum):
     AGENT_DAYS_OF_WEEK = 'agent_days_of_week'
     AGENT_OPENAI_FLAG = 'agent_openai_flag'
     AGENT_LLAMA2_FLAG = 'agent_llama2_flag'
+    AGENT_USER_MAX_USAGE_PREFIX = 'agent_user_max_usage_'
 
 class SystemSetting(models.Model):
     realm = models.ForeignKey('Realm', on_delete=models.CASCADE, null=True)
