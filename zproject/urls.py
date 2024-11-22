@@ -247,6 +247,7 @@ from zerver.views.zephyr import webathena_kerberos_login
 from zerver.views.agent import (
     agent_setting_time,
     agent_setting_usage,
+    agent_setting_usage_user,
     ai_complete_code,
     get_bot_api_key,
     get_ext_user_api_key,
@@ -545,6 +546,7 @@ v1_api_and_json_patterns = [
 
     rest_path("agent/setting/time", POST=agent_setting_time),
     rest_path("agent/setting/usage", POST=agent_setting_usage),
+    rest_path("agent/setting/usage-user", POST=agent_setting_usage_user),
 
     rest_path("ai/complete-code", POST=ai_complete_code),
     rest_path("bot/get-bot-api-key", POST=get_bot_api_key),

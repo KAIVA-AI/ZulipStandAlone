@@ -7,8 +7,11 @@ from zerver.decorator import require_realm_owner
 from zerver.actions.agent_setting import (
     do_save_agent_setting_time,
     do_save_agent_setting_usage,
+    do_save_agent_setting_usage_user,
     get_agent_suspended_reason,
     do_increase_current_request_month,
+    get_agent_ai_model,
+    get_agent_ai_max_usage,
 )
 from zerver.actions.ai_complete_code import openai_complete_code, llama2_complete_code
 from zerver.models import (
@@ -32,7 +35,7 @@ from django.utils.timezone import now as timezone_now
 def agent_setting_time(
     request: HttpRequest,
     user_profile: UserProfile,
-    max_request: str = REQ(),
+    max_request: Optional[str] = REQ(default=None),
     start_time: str = REQ(),
     end_time: str = REQ(),
     days_of_week: list[str] = REQ(json_validator=check_list(check_string)),
@@ -47,9 +50,20 @@ def agent_setting_usage(
     user_profile: UserProfile,
     workspace: str = REQ(),
     openai_flag: str = REQ(),
-    llama2_flag: str = REQ(),
+    llama2_flag: Optional[str] = REQ(default=None),
 ) -> HttpResponse:
     do_save_agent_setting_usage(workspace, openai_flag, llama2_flag)
+    return json_success(request)
+
+@require_realm_owner
+@has_request_variables
+def agent_setting_usage_user(
+    request: HttpRequest,
+    user_profile: UserProfile,
+    email: str = REQ(),
+    amount_of_money: str = REQ(),
+) -> HttpResponse:
+    do_save_agent_setting_usage_user(email, amount_of_money)
     return json_success(request)
 
 @has_request_variables
@@ -105,6 +119,7 @@ def get_bot_api_key(
     realm_string_id: str = REQ(),
     bot_email: str = REQ(),
     channel_id: Optional[str] = REQ(default=None),
+    user_id: Optional[str] = REQ(default=None),
 ) -> HttpResponse:
     realm = Realm.objects.filter(string_id=realm_string_id).first()
     if realm == None:
@@ -115,27 +130,22 @@ def get_bot_api_key(
     agentSuspendedReason = get_agent_suspended_reason(realm)
     if agentSuspendedReason is None:
         do_increase_current_request_month()
-    openaiFlagSetting = SystemSetting.objects.filter(realm=realm, key=SystemSettingKey.AGENT_OPENAI_FLAG.value).first()
-    llama2FlagSetting = SystemSetting.objects.filter(realm=realm, key=SystemSettingKey.AGENT_LLAMA2_FLAG.value).first()
-    openaiFlag = False
-    llama2Flag = True
-    if openaiFlagSetting != None:
-        openaiFlag = openaiFlagSetting.value == "1"
-    if llama2FlagSetting != None:
-        llama2Flag = llama2FlagSetting.value == "1"
     channel_name = ''
     if channel_id is not None:
         channel: Stream = Stream.objects.filter(id=channel_id).first()
         if channel is not None:
             channel_name = channel.name
+    ai_model = get_agent_ai_model(realm)
+    ai_max_usage = get_agent_ai_max_usage(user_id)
     return json_success(request, {
         "api_key": bot.api_key,
         "realm_description": realm.description,
         'realm_name': realm.name,
         'channel_name': channel_name,
         "agent_suspended_reason": agentSuspendedReason,
-        "openai_flag": openaiFlag,
-        "llama2_flag": llama2Flag,
+        "openai_flag": True,
+        'ai_model': ai_model,
+        'ai_max_usage': ai_max_usage,
     })
 
 @has_request_variables
