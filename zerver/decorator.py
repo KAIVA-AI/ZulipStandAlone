@@ -719,8 +719,8 @@ def get_basic_credentials(
             algorithms = settings.JWT_AUTH_KEYS['default']["algorithms"]
             options = {"verify_signature": True}
             payload = jwt.decode(credentials, key, algorithms=algorithms, options=options)
-            email = payload.get("email", None)
-            user = UserProfile.objects.filter(realm=realm, delivery_email=email).first()
+            email = payload.get("email", '')
+            user = UserProfile.objects.filter(realm=realm, delivery_email=email.lower()).first()
             if user is None:
                 raise UnauthorizedError(_("Invalid authorization header for basic auth"))
             role = email
