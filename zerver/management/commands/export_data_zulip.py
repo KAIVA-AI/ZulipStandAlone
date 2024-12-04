@@ -10,7 +10,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         realm_string_id = options.get("realm_string_id", None)
-        filter_realm = {}
+        filter_realm = {
+            "exclude_export": False
+        }
         if realm_string_id:
             filter_realm['string_id'] = realm_string_id
         data = []
@@ -92,7 +94,7 @@ class Command(BaseCommand):
                 total_message_to_bot = total_bot_receive_msg_pm + total_bot_message_stream + total_bot_message_group
                 total_msg_by_bot += total_message_to_bot
 
-                if service.name not in ["kolla-ai","kolla-comtor"]:
+                if service.name not in ["vietisaicomtor","vietisai"]:
                     continue
                 # add data for column comtor, ai
                 data_realm.append(total_message_to_bot)

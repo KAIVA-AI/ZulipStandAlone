@@ -789,6 +789,7 @@ class Realm(models.Model):  # type: ignore[django-manager-missing] # django-stub
         max_length=1,
     )
     night_logo_version = models.PositiveSmallIntegerField(default=1)
+    exclude_export = models.BooleanField(default=False)
 
     @override
     def __str__(self) -> str:

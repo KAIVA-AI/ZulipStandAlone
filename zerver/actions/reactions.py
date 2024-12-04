@@ -127,7 +127,7 @@ def check_add_reaction(
     reaction_type: str | None,
 ) -> None:
     by_pass_user_message = False
-    if user_profile.is_bot and user_profile.full_name is 'VietIS-AI': # TODO hardcode
+    if user_profile.is_bot and user_profile.full_name == 'VietIS-AI': # TODO hardcode
         by_pass_user_message = True
     message, user_message = access_message_and_usermessage(
         user_profile, message_id, lock_message=True,
