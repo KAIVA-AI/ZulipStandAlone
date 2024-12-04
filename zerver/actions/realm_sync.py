@@ -89,6 +89,7 @@ def do_sync_realm_and_users(
             name,
             org_type=10,
             description=description,
+            send_welcome_emails=False,
         )
     else:
         if realm.description != description:

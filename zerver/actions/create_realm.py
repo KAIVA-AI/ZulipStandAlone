@@ -196,6 +196,7 @@ def do_create_realm(
     how_realm_creator_found_zulip: str | None = None,
     how_realm_creator_found_zulip_extra_context: str | None = None,
     message_content_edit_limit_seconds: int | None = None,
+    send_welcome_emails: bool | None = None,
 ) -> Realm:
     if string_id in [settings.SOCIAL_AUTH_SUBDOMAIN, settings.SELF_HOSTING_MANAGEMENT_SUBDOMAIN]:
         raise AssertionError(
@@ -221,6 +222,8 @@ def do_create_realm(
         kwargs["org_type"] = org_type
     if default_language is not None:
         kwargs["default_language"] = default_language
+    if send_welcome_emails is not None:
+        kwargs["send_welcome_emails"] = send_welcome_emails
     if enable_spectator_access is not None:
         if enable_spectator_access:
             # Realms with LIMITED plan cannot have spectators enabled.
