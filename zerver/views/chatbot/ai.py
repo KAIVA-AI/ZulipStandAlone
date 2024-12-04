@@ -1,3 +1,5 @@
+from typing import Optional
+
 from django.http import HttpRequest, HttpResponse
 from django.utils.timezone import now as timezone_now
 
@@ -43,6 +45,7 @@ def get_agent_chat_history(
                     index=history['index'],
                     role=history['role'],
                     content=history['content'],
+                    assistant_id=history['assistant_id'],
                 ),
             )
     return json_success(request, {"histories": histories})
@@ -82,6 +85,7 @@ def add_agent_chat_history(
     bot: str = REQ(),
     role: str = REQ(),
     content: str = REQ(),
+    assistant_id: Optional[str] = REQ(default=None),
 ) -> HttpResponse:
     current_time = timezone_now()
     realm = user_profile.realm
@@ -116,6 +120,7 @@ def add_agent_chat_history(
             content='',
             index=0,
             created_at=current_time,
+            assistant_id=assistant_id,
         )
         index = 1
     AgentChatHistory.objects.create(
@@ -127,5 +132,6 @@ def add_agent_chat_history(
         content=content,
         index=index,
         created_at=current_time,
+        assistant_id=assistant_id,
     )
     return json_success(request)

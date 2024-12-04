@@ -10,3 +10,4 @@ class AgentChatHistory(models.Model):
     content = models.TextField()
     index = models.IntegerField()
     created_at = models.DateTimeField("date sent")
+    assistant_id = models.CharField(max_length=1024, null=True)
