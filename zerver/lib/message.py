@@ -265,6 +265,7 @@ def access_message(
     user_profile: UserProfile,
     message_id: int,
     lock_message: bool = False,
+    by_pass_user_message: bool = False,
 ) -> Message:
     """You can access a message by ID in our APIs that either:
     (1) You received or have previously accessed via starring
@@ -297,6 +298,8 @@ def access_message(
 
     if has_message_access(user_profile, message, has_user_message=has_user_message):
         return message
+    if by_pass_user_message:
+        return message
     raise JsonableError(_("Invalid message(s)"))
 
 
@@ -304,6 +307,7 @@ def access_message_and_usermessage(
     user_profile: UserProfile,
     message_id: int,
     lock_message: bool = False,
+    by_pass_user_message: bool = False,
 ) -> tuple[Message, UserMessage | None]:
     """As access_message, but also returns the usermessage, if any."""
     try:
@@ -321,6 +325,8 @@ def access_message_and_usermessage(
 
     if has_message_access(user_profile, message, has_user_message=has_user_message):
         return (message, user_message)
+    if by_pass_user_message:
+        return (message, None)
     raise JsonableError(_("Invalid message(s)"))
 
 

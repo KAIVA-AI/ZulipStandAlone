@@ -126,8 +126,12 @@ def check_add_reaction(
     emoji_code: str | None,
     reaction_type: str | None,
 ) -> None:
+    by_pass_user_message = False
+    if user_profile.is_bot and user_profile.full_name is 'VietIS-AI': # TODO hardcode
+        by_pass_user_message = True
     message, user_message = access_message_and_usermessage(
-        user_profile, message_id, lock_message=True
+        user_profile, message_id, lock_message=True,
+        by_pass_user_message=by_pass_user_message,
     )
 
     if emoji_code is None or reaction_type is None:
@@ -181,7 +185,7 @@ def check_add_reaction(
         # realm emoji).
         check_emoji_request(user_profile.realm, emoji_name, emoji_code, reaction_type)
 
-    if user_message is None:
+    if user_message is None and not by_pass_user_message:
         # See called function for more context.
         create_historical_user_messages(user_id=user_profile.id, message_ids=[message.id])
 
