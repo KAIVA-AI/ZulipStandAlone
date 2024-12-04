@@ -30,6 +30,8 @@ def get_subdomain_from_hostname(host: str) -> str:
     # if external host ends with a port number, remove it
     if external_host.endswith(":9981"):
         external_host = external_host.split(":")[0]
+    if external_host.endswith(":9991"):
+        external_host = external_host.split(":")[0]
     m = re.search(rf"\.{external_host}(:\d+)?$", host)
     if m:
         subdomain = host[: m.start()]
