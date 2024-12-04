@@ -94,7 +94,7 @@ class Command(BaseCommand):
                 total_message_to_bot = total_bot_receive_msg_pm + total_bot_message_stream + total_bot_message_group
                 total_msg_by_bot += total_message_to_bot
 
-                if service.name not in ["vietisaicomtor","vietisai"]:
+                if service.name not in ["vietisai","vietisaicomtor"]:
                     continue
                 # add data for column comtor, ai
                 data_realm.append(total_message_to_bot)
@@ -110,7 +110,7 @@ class Command(BaseCommand):
 
         # Define the CSV file name
         now = datetime.now()
-        date_str = now.strftime("%m_%d_%Y_%H_%M_%S")
+        date_str = now.strftime("%Y_%m_%d_%H_%M_%S")
         csv_file = f'{settings.STATICFILES_DIRS[0]}/zulip_statistics_{date_str}.csv'
 
         # Create the CSV file and write the data
