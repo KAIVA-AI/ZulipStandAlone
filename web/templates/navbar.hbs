@@ -9,6 +9,7 @@
                 <img id="realm-navbar-wide-logo" src="" alt="" class="nav-logo no-drag"/>
                 <img id="realm-navbar-icon-logo" alt="" src="{{ realm_icon_url }}" class="nav-logo no-drag"/>
             </a>
+            <p style="padding: 0 1rem 0 0; color: inherit;">{{ realm_name }}</p>
         </div>
         <div class="column-middle" id="navbar-middle">
             <div class="column-middle-inner">
@@ -44,7 +45,6 @@
                     {{t 'Log in' }}
                 </a>
             </div>
-            <div id="username" style="float:left; margin-top:1rem; margin-left:0.5rem"><p style="font-weight:bold">{{full_name}}</p></div>
             <div id="userlist-toggle" class="hidden-for-spectators">
                 <a id="userlist-toggle-button" role="button" class="header-button" tabindex="0">
                     <i class="zulip-icon zulip-icon-user-list"></i>
