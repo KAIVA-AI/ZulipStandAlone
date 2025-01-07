@@ -55,6 +55,7 @@ def add_file_to_job_input(
     end: str,
     content: str,
     input_type: str,
+    openai_model:str,
 ):
     payload = {
         "external_id": external_id,
@@ -64,6 +65,7 @@ def add_file_to_job_input(
         "end": end,
         "content": content,
         "input_type": input_type,
+        "openai_model": openai_model,
     }
     return __api_chat_bot('assistant/add-file', payload)
 

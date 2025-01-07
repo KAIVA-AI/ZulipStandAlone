@@ -261,8 +261,11 @@ def add_file(
     end: Optional[str] = REQ(default=None),
     content: Optional[str] = REQ(default=None),
     input_type: Optional[str] = REQ(default="coding_context_file"),
+    openai_model: str = REQ(),
 ) -> HttpResponse:
-    add_file_to_job_input(
+    if not openai_model:
+        return json_success(request, {"error": "openai_model not found."})
+    result = add_file_to_job_input(
         external_id=external_id,
         name=name if name is not None else path,
         path=path,
@@ -270,7 +273,11 @@ def add_file(
         end=end,
         content=content,
         input_type=input_type,
+        openai_model=openai_model,
     )
+
+    if result.get("status_code") != 200:
+        return json_success(request, {"error": result.get("error")})
 
     return json_success(request)
 
