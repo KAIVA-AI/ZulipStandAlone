@@ -1,5 +1,6 @@
 import json
 
+from flask import jsonify
 import requests
 from django.conf import settings
 
@@ -19,8 +20,9 @@ def __api_chat_bot(
         }
         response = requests.post(url=url, headers=headers, data=json.dumps(payload), timeout=600)
         return response.json()
-    except (Exception,):
-        return None
+    except Exception as e:
+            return jsonify({"error": f"Unhandled exception: {str(e)}"}), 500
+
 
 
 def bot_translate_content(content, language):
@@ -55,6 +57,7 @@ def add_file_to_job_input(
     end: str,
     content: str,
     input_type: str,
+    openai_model:str,
 ):
     payload = {
         "external_id": external_id,
@@ -64,8 +67,13 @@ def add_file_to_job_input(
         "end": end,
         "content": content,
         "input_type": input_type,
+        "openai_model": openai_model,
     }
-    return __api_chat_bot('assistant/add-file', payload)
+    result = __api_chat_bot('assistant/add-file', payload)
+
+    if result.get("status_code") != 200:
+        return  result.get("error")
+    return None
 
 
 def get_job_input(
