@@ -1,6 +1,5 @@
 import json
 
-from flask import jsonify
 import requests
 from django.conf import settings
 
@@ -19,10 +18,11 @@ def __api_chat_bot(
             "Content-Type": "application/json",
         }
         response = requests.post(url=url, headers=headers, data=json.dumps(payload), timeout=600)
+        if response.status_code != 200:
+            return {"error": f"Error: {response.json().get('error')}", "status_code": response.status_code}
         return response.json()
     except Exception as e:
-            return jsonify({"error": f"Unhandled exception: {str(e)}"}), 500
-
+            return {"error": f"Unhandled exception: {str(e)}", "status_code": 500}
 
 
 def bot_translate_content(content, language):
@@ -73,7 +73,7 @@ def add_file_to_job_input(
 
     if result.get("status_code") != 200:
         return  result.get("error")
-    return None
+    return result
 
 
 def get_job_input(
