@@ -277,7 +277,7 @@ def add_file(
     )
     if result is not None:
         return json_response("error", result)
-    return json_success(request , result)
+    return json_success(request)
 
 @has_request_variables
 def get_file_input(
