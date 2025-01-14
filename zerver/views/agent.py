@@ -111,7 +111,6 @@ def ai_complete_code(
         code = 'AI services stopped. Please contact Project Manager'
     return json_success(request, {"code": code})
 
-@require_realm_owner
 @has_request_variables
 def get_bot_api_key(
     request: HttpRequest,
