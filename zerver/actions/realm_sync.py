@@ -54,7 +54,8 @@ def do_sync_realm_and_users(
     ProjectMetaData: Optional[List[Dict[str, Any]]] = [],
 ) -> None:
     mapping_role_from_v_collab = {
-        "PM": UserProfile.ROLE_REALM_OWNER,
+        "ADMIN": UserProfile.ROLE_REALM_OWNER,
+        "PM": UserProfile.ROLE_MODERATOR,
         "Member": UserProfile.ROLE_MEMBER,
     }
     system_realm = [
