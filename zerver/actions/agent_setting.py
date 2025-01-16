@@ -7,6 +7,30 @@ from zerver.models import (
 from zerver.models.system_setting import SystemSetting, SystemSettingKey
 from datetime import datetime
 
+# check openai_flag value in function get_agent_ai_model
+ROLE_MAPPING_OPENAI_FLAG = {
+    UserProfile.ROLE_REALM_ADMINISTRATOR: {
+        "1": "gpt-4o-mini",
+        "2": "o1-mini",
+        "3": "o1-preview",
+        "4": "gpt-4o",
+    },
+    UserProfile.ROLE_MODERATOR: {
+        "1": "gpt-4o-mini",
+        "2": "o1-mini",
+        "3": "o1-preview",
+        "4": "gpt-4o",
+    },
+    UserProfile.ROLE_REALM_OWNER: {
+        "1": "gpt-4o-mini",
+        "2": "o1-mini",
+        "3": "o1-preview",
+        "4": "gpt-4o",
+        "5": "o1",
+    },
+    UserProfile.ROLE_MEMBER: {},
+}
+
 @transaction.atomic
 def do_save_agent_setting_time(
     max_request: Optional[str],
@@ -42,6 +66,7 @@ def do_save_agent_setting_usage(
     realm = Realm.objects.filter(string_id=workspace).first()
     if realm is None:
         raise AssertionError(f'Invalid workspace project id {workspace}')
+
     SystemSetting.objects.update_or_create(
         realm=realm,
         key=SystemSettingKey.AGENT_OPENAI_FLAG.value,
@@ -128,8 +153,10 @@ def get_agent_ai_model(realm: Realm) -> str:
         return "o1-mini"
     if openai_flag_setting.value == "3":
         return "o1-preview"
-    if openai_flag_setting.value == "3":
+    if openai_flag_setting.value == "4":
         return "gpt-4o"
+    if openai_flag_setting.value == "5":
+        return "o1"
     return "gpt-4o-mini"
 
 def get_agent_ai_max_usage(user_id: Optional[str]) -> str:
