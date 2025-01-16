@@ -126,11 +126,9 @@ def do_sync_realm_and_users(
     for old_member in old_members:
         if "actions" not in old_member:
             old_member["actions"] = []
-        if old_member["delivery_email"] not in new_member_dict and old_member["is_active"] is True and \
-            old_member["role"] != UserProfile.ROLE_REALM_ADMINISTRATOR:
+        if old_member["delivery_email"] not in new_member_dict and old_member["is_active"] is True:
             old_member["actions"].append(ACTION.DEACTIVATE)
-        if old_member["delivery_email"] in new_member_dict and old_member["is_active"] is False and \
-            old_member["role"] == UserProfile.ROLE_REALM_ADMINISTRATOR:
+        if old_member["delivery_email"] in new_member_dict and old_member["is_active"] is False:
             old_member["actions"].append(ACTION.ACTIVATE)
         if len(old_member["actions"]) > 0:
             sync_members.append(old_member)
