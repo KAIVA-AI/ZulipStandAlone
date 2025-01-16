@@ -711,7 +711,6 @@
         /* code block text is a bit smaller than normal text */
         font-size: 0.825em;
         line-height: 1.4;
-        white-space: pre;
         overflow-x: auto;
         word-break: break-all;
         word-wrap: normal;
@@ -723,7 +722,7 @@
         min-height: 400px;
         max-height: 30vh;
         overflow-y: auto;
-        text-wrap: wrap;
+        white-space: pre-wrap;
 
         &:hover .code-buttons-container {
             visibility: visible;
