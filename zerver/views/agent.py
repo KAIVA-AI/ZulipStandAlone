@@ -3,7 +3,7 @@ from django.http import HttpRequest, HttpResponse
 from zerver.lib.request import REQ, has_request_variables
 from zerver.lib.response import json_success, json_response
 from zerver.lib.validator import check_list, check_string
-from zerver.decorator import require_realm_owner
+from zerver.decorator import require_realm_owner, require_organization_member
 from zerver.actions.agent_setting import (
     do_save_agent_setting_time,
     do_save_agent_setting_usage,
@@ -12,6 +12,7 @@ from zerver.actions.agent_setting import (
     do_increase_current_request_month,
     get_agent_ai_model,
     get_agent_ai_max_usage,
+    ROLE_MAPPING_OPENAI_FLAG,
 )
 from zerver.actions.ai_complete_code import openai_complete_code, llama2_complete_code
 from zerver.models import (
@@ -43,7 +44,8 @@ def agent_setting_time(
     do_save_agent_setting_time(max_request, start_time, end_time, days_of_week)
     return json_success(request)
 
-@require_realm_owner
+
+@require_organization_member
 @has_request_variables
 def agent_setting_usage(
     request: HttpRequest,
@@ -52,6 +54,11 @@ def agent_setting_usage(
     openai_flag: str = REQ(),
     llama2_flag: Optional[str] = REQ(default=None),
 ) -> HttpResponse:
+    if str(openai_flag) not in list(ROLE_MAPPING_OPENAI_FLAG.get(user_profile.role, {}).keys()):
+        return json_response(
+            res_type="error",
+            msg=f"You don't have the permission to change openai model {', '.join(list(ROLE_MAPPING_OPENAI_FLAG.get(user_profile.role, {}).values()))}",
+        )
     do_save_agent_setting_usage(workspace, openai_flag, llama2_flag)
     return json_success(request)
 
