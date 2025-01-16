@@ -6,7 +6,7 @@
     /* The spacing between two paragraphs is double the usual value.
        We coordinate this spacing matches so that it matches the
        spacing between paragraphs in two consecutive 1-line messages. */
-    & p + p {
+    & p+p {
         margin-top: var(--markdown-interelement-doubled-space-px);
     }
 
@@ -307,6 +307,7 @@
             padding-right: 3px;
 
             &:hover .spoiler-arrow {
+
                 &::before,
                 &::after {
                     background-color: hsl(0deg 0% 50%);
@@ -353,7 +354,7 @@
         }
     }
 
-    & > .spoiler-block:last-child {
+    &>.spoiler-block:last-child {
         /* A spoiler block at the end of a message, or as
            a message's only content, gets the same bottom
            margin as other elements. */
@@ -440,13 +441,13 @@
        we provide a small layout hack using an
        inline grid. */
     @supports not selector(:has(*)) {
-        p:first-child > .katex-display {
+        p:first-child>.katex-display {
             /* KaTeX should take up 100% of the message box,
                so that KaTeX's own CSS for centering still works. */
             width: 100%;
         }
 
-        p:first-child > .katex-display,
+        p:first-child>.katex-display,
         .message_inline_image {
             /* We'll display this bit of media as
                an inline grid. That will allow us
@@ -468,7 +469,7 @@
             grid-template: "media" minmax(0, auto) / minmax(0, auto);
         }
 
-        p:first-child > .katex-display > .katex,
+        p:first-child>.katex-display>.katex,
         .message_inline_image a,
         .message_inline_image video {
             /* We explicitly place the containing
@@ -476,7 +477,7 @@
             grid-area: media;
         }
 
-        p:first-child > .katex-display::before,
+        p:first-child>.katex-display::before,
         .message_inline_image::before {
             /* We generate a single . here to create
                text content enough for a baseline.
@@ -669,11 +670,9 @@
             height: 10%;
             bottom: 0;
 
-            background: linear-gradient(
-                0deg,
-                var(--color-background-stream-message-content),
-                transparent 100%
-            );
+            background: linear-gradient(0deg,
+                    var(--color-background-stream-message-content),
+                    transparent 100%);
         }
     }
 
@@ -682,7 +681,7 @@
         border-right: 3px solid hsl(0deg 0% 93%);
     }
 
-    .message_embed > * {
+    .message_embed>* {
         display: inherit;
         padding: 5px;
         border: none;
@@ -720,6 +719,10 @@
         padding: 5px 7px 3px;
         display: block;
         border-radius: 4px;
+        /* scroll y */
+        min-height: 400px;
+        max-height: 30vh;
+        overflow-y: auto;
 
         &:hover .code-buttons-container {
             visibility: visible;
@@ -779,11 +782,9 @@
             backdrop-filter: blur(5px);
             /* Use a radial gradient to avoid obvious hard edges
                to the blur. */
-            mask-image: radial-gradient(
-                farthest-corner,
-                hsl(0deg 0% 0% / 100%),
-                hsl(0deg 0% 0% / 50%)
-            );
+            mask-image: radial-gradient(farthest-corner,
+                    hsl(0deg 0% 0% / 100%),
+                    hsl(0deg 0% 0% / 50%));
         }
 
         #clipboard_image {
@@ -907,13 +908,14 @@
 }
 
 .preview_content.rendered_markdown {
+
     /*  Ensure that the first child and last child
     don't have blank area at the top and bottom respectively. */
-    & > :first-child {
+    &> :first-child {
         margin-top: 0;
     }
 
-    & > :last-child:not(.message_inline_image) {
+    &> :last-child:not(.message_inline_image) {
         margin-bottom: 0;
     }
 }
@@ -942,6 +944,7 @@
    vertical scrollbar in the <textarea/> is styled similarly. */
 .message_edit_form textarea,
 .rendered_markdown pre {
+
     /* Ensure the horizontal scrollbar is visible on Mac */
     &::-webkit-scrollbar {
         height: 8px;
@@ -968,6 +971,7 @@
 /* For elements where we want to show as much markdown content we can
    in a single line and then hide the overflowing part. */
 .single-line-rendered-markdown {
+
     /* Any element which can `wrap` in the above defined elements. */
     code,
     .stream-topic {
