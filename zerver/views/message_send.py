@@ -152,6 +152,7 @@ def send_message_backend(
     ] = None,
     read_by_sender: Json[bool] | None = None,
 ) -> HttpResponse:
+    print("LOGGIN SEND MESSAGE : ", request.body.decode("utf-8") if request.body else "No payload")
     recipient_type_name = req_type
     if recipient_type_name == "direct":
         # For now, use "private" from Message.API_RECIPIENT_TYPES.

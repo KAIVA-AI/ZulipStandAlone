@@ -219,6 +219,7 @@ def get_events_backend(
         ApiParamConfig(documentation_status=DocumentationStatus.INTENTIONALLY_UNDOCUMENTED),
     ] = False,
 ) -> HttpResponse:
+    print("LOGGIN CHECK EVENTS :", request.body.decode("utf-8") if request.body else "No payload")
     if narrow is None:
         narrow = []
     if all_public_streams and not user_profile.can_access_public_streams():
