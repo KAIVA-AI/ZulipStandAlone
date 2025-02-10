@@ -270,6 +270,7 @@ CORS_ALLOW_HEADERS = (
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+    "User-Agent"
 )
 
 AUTH_USER_MODEL = "zerver.UserProfile"
