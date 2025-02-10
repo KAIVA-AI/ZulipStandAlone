@@ -125,4 +125,15 @@ scripts/setup/install --self-signed-cert --postgresql-version 15 --email=$YOUR_E
 ### apt install rabbitmq-server erlang
 
 scripts/setup/restore-backup --keep-zulipconf --keep-settings /home/ubuntu/zulip-backup-2024-08-13-04-03-21-5thj8p1k.tar.gz
+
+```
+## reinstall zulip
+git clone path git
+cd repo
+export YOUR_EMAIL=namdt@vietis.com.vn
+export YOUR_HOSTNAME=zulip.kaiva.io
+./scripts/setup/install --certbot --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
+```
+
+
 ```
