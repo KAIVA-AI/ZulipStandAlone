@@ -253,7 +253,9 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
-CORS_ALLOWED_ORIGINS = []
+CORS_ALLOWED_ORIGINS = [
+    "https://kdev.kaiva.io/"
+]
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_METHODS = (
