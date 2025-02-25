@@ -714,11 +714,13 @@ def get_basic_credentials(
         # case insensitive per RFC 1945
         if auth_type.lower() == "bearer":
             domain = get_subdomain(request)
+            print("DOMAIN22222 ", domain)
             realm = Realm.objects.filter(string_id=domain).first()
             key = settings.JWT_AUTH_KEYS['default']["key"]
             algorithms = settings.JWT_AUTH_KEYS['default']["algorithms"]
             options = {"verify_signature": True}
             payload = jwt.decode(credentials, key, algorithms=algorithms, options=options)
+            print("BINGOOOO ", payload, realm)
             email = payload.get("email", '')
             user = UserProfile.objects.filter(realm=realm, delivery_email=email.lower()).first()
             if user is None:

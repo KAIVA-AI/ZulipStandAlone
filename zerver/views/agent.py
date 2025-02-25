@@ -15,6 +15,8 @@ from zerver.actions.agent_setting import (
     ROLE_MAPPING_OPENAI_FLAG,
 )
 from zerver.actions.ai_complete_code import openai_complete_code, llama2_complete_code
+from zerver.actions.streams import bulk_add_subscriptions
+from zerver.lib.streams import StreamDict, list_to_streams
 from zerver.models import (
     AgentChatTopic,
     AgentChatTopicSub,
@@ -171,6 +173,7 @@ def get_ext_user_api_key(
     try:
         options = {"verify_signature": True}
         payload = jwt.decode(jwt_token, key, algorithms=algorithms, options=options)
+        print("PAYLOAD ", payload)
         email = payload.get("email", None)
         full_name = payload.get("full_name", None)
         user = UserProfile.objects.filter(realm=realm, delivery_email=email).first()
@@ -185,6 +188,15 @@ def get_ext_user_api_key(
                 acting_user=None,
             )
         api_key = user.api_key
+        # subscription stream
+        stream_list = ['AI Coding']
+        streams_as_dict: list[StreamDict] = [
+            {"name": stream_name.strip(), "is_web_public": False} for stream_name in stream_list
+        ]
+        existing_stream, created_stream = list_to_streams(streams_raw=streams_as_dict, user_profile=user,
+                                                          autocreate=True)
+        streams = existing_stream + created_stream
+        bulk_add_subscriptions(realm=realm, streams=streams, users=[user], acting_user=None)
     except jwt.InvalidTokenError:
         return json_response(res_type="error", msg="Invalid jwt", status=401)
 
