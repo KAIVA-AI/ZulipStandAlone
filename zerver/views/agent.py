@@ -164,7 +164,8 @@ def get_ext_user_api_key(
 ) -> HttpResponse:
     realm = Realm.objects.filter(string_id=realm_string_id).first()
     if realm == None:
-        return json_response(res_type="error", msg="Realm not found", status=404)
+        # zulip_code 1 standing for realm doesn't exit
+        return json_response(res_type="error", msg="Realm not found", data={"zulip_code": 1}, status=200)
 
     key = settings.JWT_AUTH_KEYS['default']["key"]
     algorithms = settings.JWT_AUTH_KEYS['default']["algorithms"]
