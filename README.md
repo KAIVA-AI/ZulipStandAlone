@@ -39,7 +39,7 @@ ln -nsf /etc/nginx/sites-available/zulip /etc/nginx/sites-enabled/
 nginx -t
 service nginx reload
 
-EXTERNAL_HOST=chat-dev.kollabridge.com EXTERNAL_URI_SCHEME=https:// tools/run-dev --interface=''
+EXTERNAL_HOST=zulip.kaiva.io EXTERNAL_URI_SCHEME=https:// tools/run-dev --interface=''
 ```
 ## Stg
 ```sh
@@ -52,8 +52,8 @@ git clone https://github.com/KOLLA-AI/k-chat-server.git
 cd k-chat-server
 git checkout stg
 sudo -s
-YOUR_EMAIL=hao.nguyendang@vietis.com.vn
-YOUR_HOSTNAME=chat-beta.kollabridge.com
+YOUR_EMAIL=namdt@vietis.com.vn
+YOUR_HOSTNAME=zulip.kaiva.io
 scripts/setup/install --certbot --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
 # scripts/setup/install --self-signed-cert --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
 # open link displayed in terminal
@@ -75,12 +75,12 @@ sudo add-apt-repository universe
 sudo apt update
 
 # https://zulip.readthedocs.io/en/latest/production/install.html
-git clone https://github.com/KOLLA-AI/k-chat-server.git
-cd k-chat-server
-git checkout beta
+git clone https://github.com/KAIVA-AI/ZulipStandAlone.git
+cd ZulipStandAlone
+git checkout dev
 sudo -s
-YOUR_EMAIL=hao.nguyendang@vietis.com.vn
-YOUR_HOSTNAME=chat-beta.kollabridge.com
+YOUR_EMAIL=namdt@vietis.com.vn
+YOUR_HOSTNAME=zulip.kaiva.io
 scripts/setup/install --certbot --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
 # open link displayed in terminal
 
@@ -116,8 +116,8 @@ apt update
 
 cd /home/zulip/deployments/current
 source zulip-current-venv/bin/activate
-YOUR_EMAIL=hao.nguyendang@vietis.com.vn
-YOUR_HOSTNAME=chat-beta.kollabridge.com
+YOUR_EMAIL=namdt@vietis.com.vn
+YOUR_HOSTNAME=zulip.kaiva.io
 scripts/setup/install --self-signed-cert --postgresql-version 15 --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME --no-init-db
 
 ## Error when running install:
@@ -129,7 +129,7 @@ scripts/setup/restore-backup --keep-zulipconf --keep-settings /home/ubuntu/zulip
 ```
 ## reinstall zulip
 git clone path git
-cd repo
+cd repository
 export YOUR_EMAIL=namdt@vietis.com.vn
 export YOUR_HOSTNAME=zulip.kaiva.io
 ./scripts/setup/install --certbot --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
