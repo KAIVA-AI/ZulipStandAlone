@@ -123,16 +123,34 @@ scripts/setup/install --self-signed-cert --postgresql-version 15 --email=$YOUR_E
 ## Error when running install:
 ### start rabbitmq error cuz missing erlang
 ### apt install rabbitmq-server erlang
-
+```
+## backup zulip
+```
 scripts/setup/restore-backup --keep-zulipconf --keep-settings /home/ubuntu/zulip-backup-2024-08-13-04-03-21-5thj8p1k.tar.gz
 
 ```
 ## reinstall zulip
+
+# backup data
+sudo su zulip
+cd /home/zulip/deployments/current
+mkdir ~/backup
+# backup zulip conf
+cp /etc/zulip/zulip.conf ~/backup/
+cp /etc/zulip/settings.py ~/backup/
+cp /etc/zulip/zulip-secrets.conf ~/backup/
+# backup zulip data
+python manage.py backup
+mv /tmp/zulip-backup-2024-08-13-04-03-21-5thj8p1k.tar.gz ~/backup/
+
+# reinstall
 git clone path git
 cd repository
+sudo -s
 export YOUR_EMAIL=namdt@vietis.com.vn
 export YOUR_HOSTNAME=zulip.kaiva.io
 ./scripts/setup/install --certbot --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
+/home/zulip/deployments/current/scripts/setup/restore-backup --keep-settings path/to/file_backup
 ```
 
 
