@@ -40,35 +40,8 @@ nginx -t
 service nginx reload
 
 EXTERNAL_HOST=zulip.kaiva.io EXTERNAL_URI_SCHEME=https:// tools/run-dev --interface=''
-```
-## Stg
-```sh
-# https://zulip.readthedocs.io/en/latest/production/requirements.html#operating-system
-sudo add-apt-repository universe
-sudo apt update
 
-# https://zulip.readthedocs.io/en/latest/production/install.html
-git clone https://github.com/KOLLA-AI/k-chat-server.git
-cd k-chat-server
-git checkout stg
-sudo -s
-YOUR_EMAIL=namdt@vietis.com.vn
-YOUR_HOSTNAME=zulip.kaiva.io
-scripts/setup/install --certbot --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
-# scripts/setup/install --self-signed-cert --email=$YOUR_EMAIL --hostname=$YOUR_HOSTNAME
-# open link displayed in terminal
-
-# /etc/zulip/zulip.conf
-# server setting file
-# /etc/zulip/settings.py
-# secret file
-# /etc/zulip/zulip-secrets.conf
-# add openai, replicate key
-
-# update code
-sudo su -c /home/zulip/deployments/current/deploy/deploy.sh
-```
-## Beta
+## staging
 ```sh
 # https://zulip.readthedocs.io/en/latest/production/requirements.html#operating-system
 sudo add-apt-repository universe
