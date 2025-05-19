@@ -16,14 +16,15 @@ def setup_node_modules(production: bool = DEFAULT_PRODUCTION) -> None:
     except FileNotFoundError:
         pass
 
-    run(
-        [
-            "npm",
-            "install",
-            "-g",
-            "corepack@latest",
-        ]
-    )
+    # Install corepack if faced with error pnpm Cannot find matching keyid
+    # run(
+    #     [
+    #         "npm",
+    #         "install",
+    #         "-g",
+    #         "corepack@latest",
+    #     ]
+    # )
     run(
         [
             "/usr/local/bin/corepack",
