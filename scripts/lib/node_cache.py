@@ -18,6 +18,14 @@ def setup_node_modules(production: bool = DEFAULT_PRODUCTION) -> None:
 
     run(
         [
+            "npm",
+            "install",
+            "-g",
+            "corepack@latest",
+        ]
+    )
+    run(
+        [
             "/usr/local/bin/corepack",
             "pnpm",
             "install",
