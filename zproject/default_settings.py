@@ -515,7 +515,6 @@ JWT_AUTH_KEYS: dict[str, JwtAuthKey] = {
        "algorithms": ["HS256"],
     },
 }
-print("AUTH KEYS ", JWT_AUTH_KEYS)
 # https://docs.djangoproject.com/en/5.0/ref/settings/#std:setting-SERVER_EMAIL
 # Django setting for what from address to use in error emails.
 SERVER_EMAIL = ZULIP_ADMINISTRATOR
