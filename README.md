@@ -1,4 +1,4 @@
-# Chat Server
+# Kaiva2025.En.Zulip
 
 ```sh
 YOUR_EMAIL=hao.nguyendang@vietis.com.vn
